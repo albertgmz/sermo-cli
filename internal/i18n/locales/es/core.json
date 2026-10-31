@@ -49,6 +49,8 @@
   "core.login.keyRetry": "Intentar otra vez",
   "core.login.expired": "El código venció antes de que lo confirmaras.",
   "core.login.denied": "Rechazaste la entrada en el navegador.",
+  "core.login.invalidGrant": "El código ya no sirve. Empieza otra vez.",
+  "core.login.banned": "Tu cuenta está suspendida, así que no puedes entrar.",
   "core.settings.title": "Ajustes",
   "core.settings.theme": "Tema",
   "core.settings.effect": "Efecto de bienvenida",

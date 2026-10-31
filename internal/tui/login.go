@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"math"
 	"strings"
 	"time"
 
@@ -174,6 +175,15 @@ func loginErrorText(err error) string {
 		return i18n.T("core.login.expired")
 	case errors.Is(err, auth.ErrDenied):
 		return i18n.T("core.login.denied")
+	case errors.Is(err, auth.ErrInvalidGrant):
+		return i18n.T("core.login.invalidGrant")
+	case errors.Is(err, auth.ErrBanned):
+		return i18n.T("core.login.banned")
+	}
+	var rl *auth.RateLimitError
+	if errors.As(err, &rl) {
+		secs := max(1, int(math.Ceil(rl.Wait.Seconds())))
+		return i18n.Tf("errors.rateLimited", map[string]any{"Seconds": secs})
 	}
 	return ui.ErrorText(err)
 }

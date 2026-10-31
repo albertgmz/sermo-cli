@@ -344,3 +344,14 @@ func TestFrameUsesTheBorderStyle(t *testing.T) {
 		}
 	}
 }
+
+func TestErrorTextForNewTerms(t *testing.T) {
+	terms := &api.Error{Status: 403, Code: "forbidden", Message: "x", Issues: []api.Issue{{Path: "acceptance", Message: "Accept the terms"}}}
+	if got := ErrorText(terms); got != i18n.T("errors.acceptTerms") {
+		t.Errorf("acceptance issue: ErrorText = %q, want %q", got, i18n.T("errors.acceptTerms"))
+	}
+	other := &api.Error{Status: 403, Message: "x", Issues: []api.Issue{{Path: "body", Message: "y"}}}
+	if got := ErrorText(other); got != i18n.T("errors.forbidden") {
+		t.Errorf("other issue: ErrorText = %q, want %q", got, i18n.T("errors.forbidden"))
+	}
+}

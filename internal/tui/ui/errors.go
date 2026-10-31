@@ -38,7 +38,7 @@ func apiErrorText(e *api.Error) string {
 	case http.StatusUnauthorized:
 		return i18n.T("errors.unauthorized")
 	case http.StatusForbidden:
-		return i18n.T("errors.forbidden")
+		return forbiddenText(e)
 	case http.StatusNotFound:
 		return i18n.T("errors.notFound")
 	case http.StatusTooManyRequests:
@@ -48,6 +48,17 @@ func apiErrorText(e *api.Error) string {
 		return validationText(e)
 	}
 	return i18n.T("errors.server")
+}
+
+// forbiddenText tells the member to accept the new terms of the site when
+// the server refuses a write for this reason.
+func forbiddenText(e *api.Error) string {
+	for _, is := range e.Issues {
+		if is.Path == "acceptance" {
+			return i18n.T("errors.acceptTerms")
+		}
+	}
+	return i18n.T("errors.forbidden")
 }
 
 // validationText prefers the first field issue because it is more exact

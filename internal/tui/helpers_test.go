@@ -28,6 +28,7 @@ type fakeSermo struct {
 	notifications atomic.Int32
 	conversations atomic.Int32
 	meStatus      atomic.Int32 // 0 means 200
+	counterStatus atomic.Int32 // 0 means 200
 	tokenPolls    atomic.Int32
 	unreadCalls   atomic.Int32 // signed-in calls of nodes.unread
 }
@@ -43,6 +44,10 @@ func newFakeSermo(t *testing.T) *fakeSermo {
 	})
 	mux.HandleFunc("GET /api/v1/me", f.me)
 	mux.HandleFunc("GET /api/v1/me/counters", func(w http.ResponseWriter, r *http.Request) {
+		if s := f.counterStatus.Load(); s != 0 {
+			writeJSON(w, int(s), errBody("forbidden"))
+			return
+		}
 		if !f.authorized(r) {
 			writeJSON(w, 401, errBody("unauthenticated"))
 			return

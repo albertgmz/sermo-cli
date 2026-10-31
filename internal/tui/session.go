@@ -115,6 +115,9 @@ func (m *model) gotMe(msg meMsg) tea.Cmd {
 	if api.IsUnauthorized(msg.err) || (msg.err == nil && msg.me.User == nil) {
 		return m.unauthorized()
 	}
+	if api.IsForbidden(msg.err) {
+		return m.banned()
+	}
 	if msg.err != nil {
 		return ui.ErrorCmd(msg.err)
 	}
@@ -131,6 +134,9 @@ func (m *model) gotCounters(msg countersMsg) tea.Cmd {
 	}
 	if api.IsUnauthorized(msg.err) {
 		return m.unauthorized()
+	}
+	if api.IsForbidden(msg.err) {
+		return m.banned()
 	}
 	if msg.err != nil {
 		return nil
@@ -150,13 +156,29 @@ func (m *model) unauthorized() tea.Cmd {
 	reason := i18n.T("core.login.membersOnly")
 	if m.d.Cred.Token != "" {
 		reason = i18n.T("core.login.sessionExpired")
-		if m.d.Cred.Source == auth.SourceDevice {
-			_ = m.d.Store.Delete(m.d.Server)
-		}
-		// A guest client needs no token, so New fails only for a bad server URL.
-		_ = m.signIn(auth.Credential{})
+		m.dropCredential()
 	}
 	return m.showLogin(reason)
+}
+
+// banned signs out after the server refused the credential of a banned
+// account. Only the device token is deleted. An API key stays in place.
+func (m *model) banned() tea.Cmd {
+	reason := i18n.T("core.login.banned")
+	if m.d.Cred.Source == auth.SourceDevice {
+		reason = i18n.T("errors.banned")
+	}
+	m.dropCredential()
+	return m.showLogin(reason)
+}
+
+// dropCredential deletes a stored device token and continues as a guest.
+func (m *model) dropCredential() {
+	if m.d.Cred.Source == auth.SourceDevice {
+		_ = m.d.Store.Delete(m.d.Server)
+	}
+	// A guest client needs no token, so New fails only for a bad server URL.
+	_ = m.signIn(auth.Credential{})
 }
 
 func (m *model) loggedIn(msg loggedInMsg) tea.Cmd {
@@ -180,12 +202,16 @@ func (m *model) loggedIn(msg loggedInMsg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// signIn sets the credential and makes a new API client for it. The member
-// and the counters reset until the next load.
+// signIn sets the credential and makes a new API client for it. It stops the
+// prefetch of the old client, so that no request uses the old token. The
+// member and the counters reset until the next load.
 func (m *model) signIn(c auth.Credential) error {
-	client, err := api.New(api.Options{Server: m.d.Server, Token: c.Token, UserAgent: buildinfo.UserAgent()})
+	client, err := api.New(api.Options{Server: m.d.Server, Token: c.Token, UserAgent: buildinfo.UserAgent(), Context: m.ctx})
 	if err != nil {
 		return err
+	}
+	if m.d.API != nil {
+		m.d.API.Close()
 	}
 	m.d.API, m.d.Cred, m.d.Me = client, c, nil
 	m.counters, m.haveCounters = api.Counters{}, false

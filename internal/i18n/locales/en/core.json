@@ -49,6 +49,8 @@
   "core.login.keyRetry": "Try again",
   "core.login.expired": "The code expired before you approved it.",
   "core.login.denied": "You refused the sign-in in the browser.",
+  "core.login.invalidGrant": "The code does not work now. Start again.",
+  "core.login.banned": "Your account is suspended. You cannot sign in.",
   "core.settings.title": "Settings",
   "core.settings.theme": "Theme",
   "core.settings.effect": "Splash effect",
