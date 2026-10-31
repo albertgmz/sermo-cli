@@ -1,0 +1,35 @@
+{
+ "bodyHtml": "<p>Hola a todos,</p><p>Creo este tema para recopilar imágenes de antiguos foros que ya no existen, recuerda compartir la fuente de la imagen y la fecha estimada</p><p>¡Compartan!</p><div class=\"bb-spoiler\" data-spoiler=\"0\" data-spoiler-title=\"Agroplt 2015 aprox\"></div><div class=\"bb-spoiler\" data-spoiler=\"1\" data-spoiler-title=\"Alterego el 13 Mar 2021\"></div><div class=\"bb-spoiler\" data-spoiler=\"2\" data-spoiler-title=\"Alterego el 7 May 2021\"></div>",
+ "attachments": [
+  {
+   "fileId": 2832,
+   "url": "/api/v1/files/2832",
+   "filename": "1670889243217.webp",
+   "contentType": "image/webp"
+  },
+  {
+   "fileId": 2833,
+   "url": "/api/v1/files/2833",
+   "filename": "1670889346974.webp",
+   "contentType": "image/webp"
+  },
+  {
+   "fileId": 2834,
+   "url": "/api/v1/files/2834",
+   "filename": "1670889367571.webp",
+   "contentType": "image/webp"
+  },
+  {
+   "fileId": 2835,
+   "url": "/api/v1/files/2835",
+   "filename": "1670889413620.webp",
+   "contentType": "image/webp"
+  },
+  {
+   "fileId": 2836,
+   "url": "/api/v1/files/2836",
+   "filename": "1670889454663.webp",
+   "contentType": "image/webp"
+  }
+ ]
+}

@@ -1,0 +1,49 @@
+# GoReleaser configuration for the sermo binary.
+version: 2
+
+project_name: sermo
+
+builds:
+  - id: sermo
+    main: ./cmd/sermo
+    binary: sermo
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/albertgmz/sermo-cli/internal/buildinfo.Version={{.Version}}
+      - -X github.com/albertgmz/sermo-cli/internal/buildinfo.Commit={{.ShortCommit}}
+      - -X github.com/albertgmz/sermo-cli/internal/buildinfo.Date={{.Date}}
+
+archives:
+  - id: sermo
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    # internal/update finds the asset by the "_<os>_<arch>.<ext>" suffix.
+    # Do not change this name without a change to internal/update.
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  # internal/update verifies each download with this file.
+  name_template: checksums.txt
+  algorithm: sha256
+
+changelog:
+  use: git
+  sort: asc

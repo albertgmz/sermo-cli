@@ -1,0 +1,9 @@
+{
+  "errors.unauthorized": "Your session is not valid or it expired. Sign in again with \"sermo login\".",
+  "errors.forbidden": "You do not have permission to do that.",
+  "errors.notFound": "We cannot find this item. It is possible that it was deleted.",
+  "errors.rateLimited": "Too many requests. Wait {{.Seconds}} s and try again.",
+  "errors.server": "The server has a problem now. Try again later.",
+  "errors.network": "There is no connection to the server. Examine your internet connection.",
+  "errors.deviceUnsupported": "This server does not let you sign in from the terminal. Make an API key in your account and put it in the SERMO_API_KEY variable."
+}

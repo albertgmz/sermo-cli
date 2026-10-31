@@ -1,0 +1,9 @@
+{
+  "errors.unauthorized": "Tu sesión no es válida o ya venció. Vuelve a entrar con «sermo login».",
+  "errors.forbidden": "No tienes permiso para hacer eso.",
+  "errors.notFound": "No encontramos lo que buscas. Puede que ya no exista.",
+  "errors.rateLimited": "Vas muy rápido. Espera {{.Seconds}} s y vuelve a intentarlo.",
+  "errors.server": "El servidor tiene problemas ahora mismo. Inténtalo de nuevo en un rato.",
+  "errors.network": "No hay conexión con el servidor. Revisa tu conexión a internet.",
+  "errors.deviceUnsupported": "Este servidor no permite entrar desde la terminal. Crea una clave de API en tu cuenta y ponla en la variable SERMO_API_KEY."
+}

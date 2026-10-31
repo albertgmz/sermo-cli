@@ -1,0 +1,12 @@
+{
+  "render.image": "[imagen {{.N}}: {{.Alt}}]",
+  "render.imageNoAlt": "[imagen {{.N}}]",
+  "render.attachment": "[adjunto {{.N}}: {{.Filename}}]",
+  "render.attachments": {
+    "one": "{{.Count}} adjunto",
+    "other": "{{.Count}} adjuntos"
+  },
+  "render.spoiler": "[spoiler]",
+  "render.spoilerTitled": "[spoiler: {{.Title}}]",
+  "render.quoteAuthor": "{{.Author}} escribió:"
+}

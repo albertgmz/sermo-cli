@@ -1,0 +1,8 @@
+# Build output
+/sermo
+/sermo.exe
+/dist/
+
+# Agent configuration
+CLAUDE.md
+.claude/

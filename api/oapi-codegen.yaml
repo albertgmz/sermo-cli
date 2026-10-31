@@ -1,0 +1,63 @@
+# oapi-codegen settings for the typed client in internal/api/gen.
+# The list holds only the member operations the client uses.
+# reactions.* stays out: its "contentType" path parameter makes code that does not compile.
+package: gen
+output: internal/api/gen/client.gen.go
+generate:
+  models: true
+  client: true
+output-options:
+  skip-prune: false
+  include-operation-ids:
+    - auth.me
+    - auth.counters
+    - site.get
+    - paletteColors.list
+    - groups.list
+    - nodes.list
+    - nodes.get
+    - nodes.unread
+    - nodes.markRead
+    - nodes.markAllRead
+    - nodes.watch
+    - nodes.unwatch
+    - threadPrefixes.list
+    - threads.list
+    - threads.get
+    - threads.create
+    - threads.locateUnread
+    - threads.markRead
+    - threads.watch
+    - threads.unwatch
+    - posts.list
+    - posts.get
+    - posts.create
+    - posts.update
+    - posts.preview
+    - polls.get
+    - polls.vote
+    - reactionTypes.list
+    - bookmarks.list
+    - bookmarks.set
+    - bookmarks.status
+    - watches.listThreads
+    - watches.listNodes
+    - notifications.list
+    - notifications.markRead
+    - notifications.markViewed
+    - conversations.list
+    - conversations.create
+    - conversations.get
+    - conversations.listMessages
+    - conversations.reply
+    - conversations.locateUnread
+    - conversations.markRead
+    - conversations.quoteMessage
+    - profiles.get
+    - users.search
+    - profilePosts.list
+    - profilePosts.create
+    - profileComments.list
+    - profileComments.create
+    - search.query
+    - spoilers.get
