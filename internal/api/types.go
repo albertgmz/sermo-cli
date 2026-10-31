@@ -136,6 +136,10 @@ type ThreadView struct {
 		Robots      gen.ThreadsGet200JSONResponseBodySeoRobots `json:"robots"`
 		Title       string                                     `json:"title"`
 	} `json:"seo"`
+	SeoOverride *struct {
+		Description *string `json:"description"`
+		Title       *string `json:"title"`
+	} `json:"seoOverride"`
 	Tags     []string   `json:"tags"`
 	Thread   gen.Thread `json:"thread"`
 	Watching *struct {

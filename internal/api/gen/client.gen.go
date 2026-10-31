@@ -1402,9 +1402,17 @@ type MemberCardNameIconPosition string
 
 // MemberDevice defines model for MemberDevice.
 type MemberDevice struct {
-	Browser *string           `json:"browser"`
-	Os      *string           `json:"os"`
-	Type    *MemberDeviceType `json:"type"`
+	Brand          *string           `json:"brand"`
+	BrandCode      *string           `json:"brandCode"`
+	Browser        *string           `json:"browser"`
+	BrowserCode    *string           `json:"browserCode"`
+	BrowserVersion *string           `json:"browserVersion"`
+	DeviceType     *string           `json:"deviceType"`
+	Os             *string           `json:"os"`
+	OsCode         *string           `json:"osCode"`
+	OsFamily       *string           `json:"osFamily"`
+	OsVersion      *string           `json:"osVersion"`
+	Type           *MemberDeviceType `json:"type"`
 }
 
 // MemberDeviceType defines model for MemberDevice.Type.
@@ -1510,6 +1518,7 @@ type NodeSettings struct {
 	IsReadOnly            bool `json:"isReadOnly"`
 	MinAccountAgeDays     int  `json:"minAccountAgeDays"`
 	MinPostCount          int  `json:"minPostCount"`
+	NoIndex               bool `json:"noIndex"`
 	RequirePrefix         bool `json:"requirePrefix"`
 	RequireReplyApproval  bool `json:"requireReplyApproval"`
 	RequireThreadApproval bool `json:"requireThreadApproval"`
@@ -11708,6 +11717,10 @@ type ThreadsGetResponse struct {
 			Robots      ThreadsGet200JSONResponseBodySeoRobots `json:"robots"`
 			Title       string                                 `json:"title"`
 		} `json:"seo"`
+		SeoOverride *struct {
+			Description *string `json:"description"`
+			Title       *string `json:"title"`
+		} `json:"seoOverride"`
 		Tags     []string `json:"tags"`
 		Thread   Thread   `json:"thread"`
 		Watching *struct {
@@ -11764,6 +11777,10 @@ func (r ThreadsGetResponse) GetJSON200() *struct {
 		Robots      ThreadsGet200JSONResponseBodySeoRobots `json:"robots"`
 		Title       string                                 `json:"title"`
 	} `json:"seo"`
+	SeoOverride *struct {
+		Description *string `json:"description"`
+		Title       *string `json:"title"`
+	} `json:"seoOverride"`
 	Tags     []string `json:"tags"`
 	Thread   Thread   `json:"thread"`
 	Watching *struct {
@@ -12693,7 +12710,7 @@ type ProfilesGetResponse struct {
 		CreatedAt      time.Time     `json:"createdAt"`
 		Credits        int           `json:"credits"`
 		CustomTitle    *string       `json:"customTitle"`
-		Device         *MemberDevice `json:"device"`
+		Device         *MemberDevice `json:"device,omitempty"`
 		DisplayGroup   *DisplayGroup `json:"displayGroup"`
 		FollowerCount  int           `json:"followerCount"`
 		FollowingCount int           `json:"followingCount"`
@@ -12773,7 +12790,7 @@ func (r ProfilesGetResponse) GetJSON200() *struct {
 	CreatedAt      time.Time     `json:"createdAt"`
 	Credits        int           `json:"credits"`
 	CustomTitle    *string       `json:"customTitle"`
-	Device         *MemberDevice `json:"device"`
+	Device         *MemberDevice `json:"device,omitempty"`
 	DisplayGroup   *DisplayGroup `json:"displayGroup"`
 	FollowerCount  int           `json:"followerCount"`
 	FollowingCount int           `json:"followingCount"`
@@ -17377,6 +17394,10 @@ func ParseThreadsGetResponse(rsp *http.Response) (*ThreadsGetResponse, error) {
 				Robots      ThreadsGet200JSONResponseBodySeoRobots `json:"robots"`
 				Title       string                                 `json:"title"`
 			} `json:"seo"`
+			SeoOverride *struct {
+				Description *string `json:"description"`
+				Title       *string `json:"title"`
+			} `json:"seoOverride"`
 			Tags     []string `json:"tags"`
 			Thread   Thread   `json:"thread"`
 			Watching *struct {
@@ -18167,7 +18188,7 @@ func ParseProfilesGetResponse(rsp *http.Response) (*ProfilesGetResponse, error) 
 			CreatedAt      time.Time     `json:"createdAt"`
 			Credits        int           `json:"credits"`
 			CustomTitle    *string       `json:"customTitle"`
-			Device         *MemberDevice `json:"device"`
+			Device         *MemberDevice `json:"device,omitempty"`
 			DisplayGroup   *DisplayGroup `json:"displayGroup"`
 			FollowerCount  int           `json:"followerCount"`
 			FollowingCount int           `json:"followingCount"`
