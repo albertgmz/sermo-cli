@@ -97,15 +97,15 @@ func Header(s Styles, t theme.Theme, text string, width int) string {
 	return p.b.String()
 }
 
-// Frame draws a double line box of width x height cells with the border
-// gradient of t around content. The title shows in the top border. The
+// Frame draws a box of width x height cells with the border gradient of t
+// around content. t.BorderStyle selects the lines. The default is double. The title shows in the top border. The
 // content area is width-4 columns and height-2 rows. Frame cuts longer
 // content.
 func Frame(s Styles, t theme.Theme, title, content string, width, height int) string {
 	if width < 4 || height < 2 {
 		return ""
 	}
-	f := frame{t: t, s: s, w: width, h: height}
+	f := frame{t: t, s: s, w: width, h: height, r: frameRunesFor(t.BorderStyle)}
 	var b strings.Builder
 	f.top(&b, title)
 	lines := strings.Split(content, "\n")
@@ -133,6 +133,29 @@ type frame struct {
 	t    theme.Theme
 	s    Styles
 	w, h int
+	r    frameRunes
+}
+
+// frameRunes are the lines of a frame and the two marks around the title.
+type frameRunes struct {
+	lipgloss.Border
+	open, close string
+}
+
+var frameStyles = map[string]frameRunes{
+	"normal":  {lipgloss.NormalBorder(), "┤", "├"},
+	"rounded": {lipgloss.RoundedBorder(), "┤", "├"},
+	"thick":   {lipgloss.ThickBorder(), "┫", "┣"},
+	"ascii":   {lipgloss.ASCIIBorder(), "|", "|"},
+}
+
+// frameRunesFor returns the lines for a border style. An unknown style
+// gives double lines.
+func frameRunesFor(style string) frameRunes {
+	if r, ok := frameStyles[style]; ok {
+		return r
+	}
+	return frameRunes{lipgloss.DoubleBorder(), "╡", "╞"}
 }
 
 // color gives the border color at perimeter index i. The index goes
@@ -152,32 +175,34 @@ func (f frame) top(b *strings.Builder, title string) {
 		p.b.WriteString(r)
 		x++
 	}
-	cell("╔")
-	cell("═")
+	cell(f.r.TopLeft)
+	cell(f.r.Top)
 	if tw > 0 {
-		cell("╡")
+		cell(f.r.open)
 		p.b.WriteString("\x1b[m")
 		p.fgOn = false
 		p.b.WriteString(f.s.Subtitle.Render(" " + title + " "))
 		x += tw + 2
-		cell("╞")
+		cell(f.r.close)
 	}
 	for x < f.w-1 {
-		cell("═")
+		cell(f.r.Top)
 	}
-	cell("╗")
+	cell(f.r.TopRight)
 	p.b.WriteString("\x1b[m")
 	b.WriteString(p.b.String())
 }
 
 func (f frame) side(b *strings.Builder, y int, left bool) {
 	var p painter
+	line := f.r.Right
 	if left {
+		line = f.r.Left
 		p.fg(f.color(2*(f.w-1) + 2*(f.h-1) - y))
 	} else {
 		p.fg(f.color(f.w - 1 + y))
 	}
-	p.b.WriteString("║\x1b[m")
+	p.b.WriteString(line + "\x1b[m")
 	b.WriteString(p.b.String())
 }
 
@@ -188,11 +213,11 @@ func (f frame) bottom(b *strings.Builder) {
 		p.fg(f.color(base + f.w - 1 - x))
 		switch x {
 		case 0:
-			p.b.WriteString("╚")
+			p.b.WriteString(f.r.BottomLeft)
 		case f.w - 1:
-			p.b.WriteString("╝")
+			p.b.WriteString(f.r.BottomRight)
 		default:
-			p.b.WriteString("═")
+			p.b.WriteString(f.r.Bottom)
 		}
 	}
 	p.b.WriteString("\x1b[m")

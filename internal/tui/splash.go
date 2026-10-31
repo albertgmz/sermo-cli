@@ -24,12 +24,35 @@ type splash struct {
 	effect fx.Effect
 }
 
+// newSplash selects the effect of the config, else the effect of the
+// theme, else a random effect.
 func newSplash(d *ui.Deps, r *rand.Rand) *splash {
-	e, ok := fx.ByName(d.Config.Effect, d.Theme.Splash)
+	e, ok := fx.ByName(splashEffect(d), d.Theme.Splash)
 	if !ok {
 		e = fx.Random(r, d.Theme.Splash)
 	}
 	return &splash{d: d, effect: e}
+}
+
+// splashEffect returns the effect name of the config, else the effect name
+// of the theme. It returns "" for a random effect.
+func splashEffect(d *ui.Deps) string {
+	if d.Config.Effect != "" {
+		return d.Config.Effect
+	}
+	return d.Theme.Effect
+}
+
+// retheme paints the effect again with the gradient of the current theme.
+// When the config and the theme set no effect, the effect stays the same.
+func (s *splash) retheme() {
+	name := splashEffect(s.d)
+	if name == "" {
+		name = s.effect.Name
+	}
+	if e, ok := fx.ByName(name, s.d.Theme.Splash); ok {
+		s.effect = e
+	}
 }
 
 // Animating reports whether the splash needs animation ticks.
@@ -51,7 +74,7 @@ func (s *splash) View(site string, width, height int) string {
 	if done && (!s.d.Animate() || math.Mod(t, 1.2) < 0.85) {
 		prompt = i18n.T("core.splash.anyKey")
 	}
-	mask := splashMask(site, steps, lines, prompt, width, height)
+	mask := splashMask(site, s.d.Theme.BannerFont, steps, lines, prompt, width, height)
 	return fx.Render(s.effect, width, height, t, mask, fx.RenderOptions{ASCII: s.d.Plain()})
 }
 
@@ -115,15 +138,15 @@ func cursor(t float64) string {
 	return " "
 }
 
-// splashMask builds the mask lines: a double line box around the banner,
-// the handshake lines and the prompt. All lines get the same width so that
-// the plate does not change size while the text types.
-func splashMask(site string, steps []crawlStep, lines []string, prompt string, width, height int) []string {
+// splashMask builds the mask lines: a double line box around the banner in
+// the font, the handshake lines and the prompt. All lines get the same width
+// so that the plate does not change size while the text types.
+func splashMask(site, font string, steps []crawlStep, lines []string, prompt string, width, height int) []string {
 	crawlW := ansi.StringWidth(i18n.T("core.splash.anyKey"))
 	for _, st := range steps {
 		crawlW = max(crawlW, ansi.StringWidth(st.text)+1)
 	}
-	logo := banner.Lines(site, width-10)
+	logo := banner.LinesWithFont(site, width-10, font)
 	if len(logo)+len(steps)+8 > height {
 		logo = []string{strings.ToUpper(site)}
 	}

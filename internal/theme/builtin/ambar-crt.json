@@ -1,0 +1,18 @@
+{
+  "name": "Ámbar CRT",
+  "colors": {
+    "text": "#ffdda8",
+    "muted": "#c99d5e",
+    "accent": "#ffb000",
+    "error": "#ff6a3d",
+    "success": "#e8d05a",
+    "warning": "#ffcc66",
+    "selection": "#4a2e00"
+  },
+  "gradients": {
+    "border": ["#7a4a00", "#ffb000", "#ffe0a0"],
+    "title": ["#ff9500", "#ffb000", "#ffe0a0"],
+    "highlight": ["#ff9500", "#ffd27a"],
+    "splash": ["#1a0e00", "#6b3e00", "#ffb000", "#ffe4b0"]
+  }
+}

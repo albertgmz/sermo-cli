@@ -148,3 +148,11 @@ func TestResolveServerRejectsBadURL(t *testing.T) {
 		})
 	}
 }
+
+func TestThemesDirIsInsideDir(t *testing.T) {
+	dir := useTempDir(t)
+	got, err := ThemesDir()
+	if err != nil || got != filepath.Join(dir, "themes") {
+		t.Errorf("ThemesDir() = %q, %v, want %q", got, err, filepath.Join(dir, "themes"))
+	}
+}

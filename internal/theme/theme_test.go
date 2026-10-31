@@ -2,14 +2,8 @@ package theme
 
 import (
 	"image/color"
-	"math"
 	"testing"
 )
-
-var darkBackgrounds = []color.Color{
-	color.RGBA{0, 0, 0, 255},
-	color.RGBA{0x1e, 0x1e, 0x1e, 255},
-}
 
 func TestAllThemes(t *testing.T) {
 	want := map[string]string{
@@ -87,23 +81,4 @@ func TestTextContrast(t *testing.T) {
 			t.Errorf("%s: Text contrast %.2f on Selection, want 7 or more", th.ID, r)
 		}
 	}
-}
-
-// contrast is the WCAG 2 contrast ratio of two colors.
-func contrast(a, b color.Color) float64 {
-	la, lb := luminance(a), luminance(b)
-	return (math.Max(la, lb) + 0.05) / (math.Min(la, lb) + 0.05)
-}
-
-// luminance is the WCAG 2 relative luminance.
-func luminance(c color.Color) float64 {
-	r, g, b, _ := c.RGBA()
-	lin := func(v uint32) float64 {
-		s := float64(v) / 0xffff
-		if s <= 0.04045 {
-			return s / 12.92
-		}
-		return math.Pow((s+0.055)/1.055, 2.4)
-	}
-	return 0.2126*lin(r) + 0.7152*lin(g) + 0.0722*lin(b)
 }

@@ -42,6 +42,11 @@ type Deps struct {
 	AnimT float64
 	// Now gives the current time. Tests set a fixed clock.
 	Now func() time.Time
+	// Themes are the themes to select from. The zero Set holds the
+	// built-in themes.
+	Themes theme.Set
+	// ThemesDir is the directory of the user theme files.
+	ThemesDir string
 }
 
 // Animate reports whether the views can animate. It is false with

@@ -68,5 +68,22 @@
   "core.lang.en": "English",
   "core.help.title": "Help",
   "core.help.global": "General keys",
-  "core.help.screen": "This screen"
+  "core.help.screen": "This screen",
+  "core.settings.custom": "{{.Name}} (custom)",
+  "core.settings.themesDir": "Folder for your themes:",
+  "core.themes.loadFailed": {
+    "one": "{{.Count}} theme did not load: {{.Files}}",
+    "other": "{{.Count}} themes did not load: {{.Files}}"
+  },
+  "core.themes.err.read": "the file cannot be read",
+  "core.themes.err.tooLarge": "the file is too large, the maximum is 64 KiB",
+  "core.themes.err.syntax": "the JSON is not a valid theme",
+  "core.themes.err.id": "the file name can have only lowercase letters, digits and hyphens",
+  "core.themes.err.missing": "a field is missing",
+  "core.themes.err.color": "a color is not in the #rrggbb format",
+  "core.themes.err.gradient": "a gradient must have 2 colors or more",
+  "core.themes.err.border": "the border style is unknown",
+  "core.themes.err.font": "the banner font is unknown",
+  "core.themes.err.effect": "the effect is unknown",
+  "core.themes.err.contrast": "the text is not easy to read"
 }

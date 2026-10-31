@@ -76,3 +76,36 @@ func cols(lines []string) int {
 	}
 	return n
 }
+
+func TestLinesWithFontUsesTheFont(t *testing.T) {
+	got := LinesWithFont("Foros Cuba", 200, "standard")
+	if strings.Join(got, "\n") == strings.Join(Lines("Foros Cuba", 200), "\n") {
+		t.Fatal("the standard font gives the same banner as the default fonts")
+	}
+	if len(got) < 2 {
+		t.Errorf("got %d lines, want a FIGlet banner", len(got))
+	}
+}
+
+func TestLinesWithFontFallsBackWhenTooWide(t *testing.T) {
+	got := LinesWithFont("Foros Cuba", 60, "colossal")
+	want := Lines("Foros Cuba", 60)
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("LinesWithFont = %q, want the default banner %q", got, want)
+	}
+}
+
+func TestLinesWithFontIgnoresUnknownFont(t *testing.T) {
+	got := LinesWithFont("Foros Cuba", 200, "no-such-font")
+	if strings.Join(got, "\n") != strings.Join(Lines("Foros Cuba", 200), "\n") {
+		t.Errorf("an unknown font must give the default banner, got %q", got)
+	}
+}
+
+func TestHasFont(t *testing.T) {
+	for name, want := range map[string]bool{"doom": true, "standard": true, "slant": true, "no-such-font": false, "": false, "../fonts/doom": false} {
+		if got := HasFont(name); got != want {
+			t.Errorf("HasFont(%q) = %v, want %v", name, got, want)
+		}
+	}
+}

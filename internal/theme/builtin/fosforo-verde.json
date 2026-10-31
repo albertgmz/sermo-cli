@@ -1,0 +1,18 @@
+{
+  "name": "Fósforo verde",
+  "colors": {
+    "text": "#ccffd8",
+    "muted": "#74c48a",
+    "accent": "#33ff66",
+    "error": "#ff7a70",
+    "success": "#7cff9e",
+    "warning": "#e6ff66",
+    "selection": "#0f3d1e"
+  },
+  "gradients": {
+    "border": ["#0a5c2a", "#33ff66", "#b3ffc8"],
+    "title": ["#33ff66", "#b3ffc8"],
+    "highlight": ["#00ff88", "#ccff66"],
+    "splash": ["#001a08", "#00662a", "#33ff66", "#d6ffe0"]
+  }
+}

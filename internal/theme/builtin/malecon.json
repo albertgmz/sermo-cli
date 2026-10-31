@@ -1,0 +1,18 @@
+{
+  "name": "Malecón",
+  "colors": {
+    "text": "#eaf6ff",
+    "muted": "#93b6cf",
+    "accent": "#ff8a5b",
+    "error": "#ff5e62",
+    "success": "#4fe3c1",
+    "warning": "#ffc15e",
+    "selection": "#12355b"
+  },
+  "gradients": {
+    "border": ["#0b4f8a", "#1fa2d6", "#ff8a5b"],
+    "title": ["#ffb26b", "#ff7f6b", "#ff6f91"],
+    "highlight": ["#4fc3f7", "#ff8a5b"],
+    "splash": ["#031a33", "#0b4f8a", "#1fa2d6", "#ff8a5b", "#ff6f91"]
+  }
+}

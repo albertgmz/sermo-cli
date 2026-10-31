@@ -16,7 +16,6 @@ import (
 	"github.com/albertgmz/sermo-cli/internal/config"
 	"github.com/albertgmz/sermo-cli/internal/i18n"
 	"github.com/albertgmz/sermo-cli/internal/render"
-	"github.com/albertgmz/sermo-cli/internal/theme"
 	"github.com/albertgmz/sermo-cli/internal/tui/forum"
 	"github.com/albertgmz/sermo-cli/internal/tui/ui"
 )
@@ -70,7 +69,10 @@ func newModel(ctx context.Context, d *ui.Deps, opts Options) *model {
 	if opts.Locale != "" {
 		i18n.SetLocale(opts.Locale)
 	}
-	d.SetTheme(theme.ByID(d.Config.Theme))
+	if d.ThemesDir == "" {
+		d.ThemesDir, _ = config.ThemesDir()
+	}
+	d.SetTheme(d.Themes.ByID(d.Config.Theme))
 	d.Glamour = glamourStyle(d, true)
 	m := &model{
 		ctx:   ctx,

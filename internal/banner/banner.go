@@ -21,17 +21,36 @@ var fonts = []string{"colossal", "doom", "cybermedium"}
 // the plain uppercase text, cut to maxWidth. Lines removes diacritics because
 // the fonts have only ASCII glyphs.
 func Lines(text string, maxWidth int) []string {
+	return LinesWithFont(text, maxWidth, "")
+}
+
+// LinesWithFont is Lines with the font tried first. When font is empty,
+// unknown or too wide, LinesWithFont uses the same fonts as Lines.
+func LinesWithFont(text string, maxWidth int, font string) []string {
 	text = strings.ToUpper(strings.TrimSpace(stripMarks(text)))
 	if text == "" {
 		return nil
 	}
-	for _, font := range fonts {
+	order := fonts
+	if HasFont(font) {
+		order = append([]string{font}, fonts...)
+	}
+	for _, font := range order {
 		lines := trimBlank(figure.NewFigure(text, font, false).Slicify())
 		if len(lines) > 0 && width(lines) <= maxWidth {
 			return lines
 		}
 	}
 	return []string{ansi.Truncate(text, maxWidth, "")}
+}
+
+// HasFont reports whether go-figure has a font with the name.
+func HasFont(name string) bool {
+	if name == "" {
+		return false
+	}
+	_, err := figure.Asset("fonts/" + name + ".flf")
+	return err == nil
 }
 
 // stripMarks removes the combining marks, for example "á" becomes "a".

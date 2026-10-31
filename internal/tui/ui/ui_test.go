@@ -321,3 +321,26 @@ func TestListZeroValueUsesSystemClock(t *testing.T) {
 		t.Fatal("the list must stop after 2 s")
 	}
 }
+
+func TestFrameUsesTheBorderStyle(t *testing.T) {
+	cases := map[string][2]string{
+		"":        {"╔═╡ T ╞═══╗", "╚═════════╝"},
+		"double":  {"╔═╡ T ╞═══╗", "╚═════════╝"},
+		"normal":  {"┌─┤ T ├───┐", "└─────────┘"},
+		"rounded": {"╭─┤ T ├───╮", "╰─────────╯"},
+		"thick":   {"┏━┫ T ┣━━━┓", "┗━━━━━━━━━┛"},
+		"ascii":   {"+-| T |---+", "+---------+"},
+	}
+	for style, want := range cases {
+		th := theme.ByID("")
+		th.BorderStyle = style
+		lines := strings.Split(ansi.Strip(Frame(NewStyles(th), th, "T", "x", 11, 3)), "\n")
+		side := map[string]string{"normal": "│", "rounded": "│", "thick": "┃", "ascii": "|"}[style]
+		if side == "" {
+			side = "║"
+		}
+		if lines[0] != want[0] || lines[2] != want[1] || !strings.HasPrefix(lines[1], side) || !strings.HasSuffix(lines[1], side) {
+			t.Errorf("style %q:\n%s", style, strings.Join(lines, "\n"))
+		}
+	}
+}

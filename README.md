@@ -56,7 +56,9 @@ This command downloads the latest release and replaces the binary. It does a che
 
 `sermo` saves the session and shows your username. To cancel, push Ctrl+C.
 
-`sermo logout` tells the server to end the session, and then deletes the saved session. If the server does not confirm, `sermo` deletes the saved session on your computer. Then you can remove the device on the security page of your account, at `<server>/account/security`.
+A session from `sermo login` lasts 90 days. After that time, run `sermo login` again. The security page of your account, at `<server>/account/security`, shows each session as "sermo-cli · <host>". The host is the name of your computer.
+
+`sermo logout` tells the server to end the session of this device, and then deletes the saved session. Your other sessions continue. If the server does not confirm, `sermo` deletes the saved session on your computer. Then you can remove the device on the security page.
 
 ### Flags
 
@@ -154,7 +156,7 @@ Change the theme and the effect in the settings screen. `sermo` saves the change
 | Fósforo verde | Green text, as on an old green phosphor monitor. |
 | Malecón | Light blue text with orange accents, as the sea wall of Havana at sunset. |
 
-The splash screen shows 1 of 5 animated effects. The default effect is a random effect.
+The splash screen shows 1 of 5 animated effects. A theme can set the default effect. If the theme sets no effect, the default effect is a random effect.
 
 | Effect | Description |
 | --- | --- |
@@ -165,6 +167,78 @@ The splash screen shows 1 of 5 animated effects. The default effect is a random 
 | `crt` | A dark phosphor screen with scanlines, a bright band that rolls down, a small flicker and dark corners. |
 
 Each effect uses the colors of the theme. The effects show only on the splash screen, the headers and the borders. The text of posts is always plain text with high contrast. With reduced motion or `--no-anim`, the effects do not move.
+
+### Custom themes
+
+You can add your own themes. Put 1 JSON file for each theme in the `themes` folder of the configuration directory.
+
+| System | Default folder |
+| --- | --- |
+| Windows | `%AppData%\sermo\themes` |
+| macOS | `~/Library/Application Support/sermo/themes` |
+| Linux | `~/.config/sermo/themes` |
+
+If you set `SERMO_CONFIG_DIR`, the folder is `themes` in that directory. The settings screen shows the folder at the bottom.
+
+The file name without `.json` is the theme ID. The ID can have only lowercase letters, digits and hyphens, for example `my-theme.json`. A file must not be larger than 64 KiB.
+
+This example is the built-in Malecón theme with the 3 optional fields:
+
+```json
+{
+  "name": "Malecón",
+  "colors": {
+    "text": "#eaf6ff",
+    "muted": "#93b6cf",
+    "accent": "#ff8a5b",
+    "error": "#ff5e62",
+    "success": "#4fe3c1",
+    "warning": "#ffc15e",
+    "selection": "#12355b"
+  },
+  "gradients": {
+    "border": ["#0b4f8a", "#1fa2d6", "#ff8a5b"],
+    "title": ["#ffb26b", "#ff7f6b", "#ff6f91"],
+    "highlight": ["#4fc3f7", "#ff8a5b"],
+    "splash": ["#031a33", "#0b4f8a", "#1fa2d6", "#ff8a5b", "#ff6f91"]
+  },
+  "border": "double",
+  "bannerFont": "doom",
+  "effect": "plasma"
+}
+```
+
+The built-in themes are in [`internal/theme/builtin/`](internal/theme/builtin/). Copy 1 of these files to start a new theme.
+
+| Field | Necessary | Value |
+| --- | --- | --- |
+| `name` | Yes | The name in the settings screen. |
+| `colors.text` | Yes | The color of the text. |
+| `colors.muted` | Yes | The color of the text with less importance. |
+| `colors.accent` | Yes | The color of titles, keys and badges. |
+| `colors.error` | Yes | The color of errors. |
+| `colors.success` | Yes | The color of success messages. |
+| `colors.warning` | Yes | The color of warnings. |
+| `colors.selection` | Yes | The background of the selected row. |
+| `gradients.border` | Yes | The colors of the frame and the bars. |
+| `gradients.title` | Yes | The colors of the headers and the site name. |
+| `gradients.highlight` | Yes | The colors of the text in the selected row. |
+| `gradients.splash` | Yes | The colors of the effects. |
+| `border` | No | The line style of the frame: `double`, `normal`, `rounded`, `thick` or `ascii`. The default is `double`. |
+| `bannerFont` | No | The FIGlet font of the splash banner, for example `doom`, `standard` or `slant`. Use the name of a font in [go-figure](https://github.com/common-nighthawk/go-figure/tree/master/fonts) without `.flf`. If the banner is too wide for the font, `sermo` uses the default fonts. |
+| `effect` | No | The default splash effect: `plasma`, `fire`, `gradient`, `starfield` or `crt`. The `effect` field in `config.json` has priority. |
+
+Write each color as `#rrggbb`. A gradient must have 2 colors or more.
+
+The colors must be easy to read on a dark background. `sermo` uses the WCAG 2 contrast ratio:
+
+- `colors.text` must have a ratio of 7 or more on black and on `#1e1e1e`.
+- `colors.text` must have a ratio of 7 or more on `colors.selection`.
+- `colors.muted`, `colors.accent`, `colors.error`, `colors.success` and `colors.warning` must have a ratio of 4.5 or more on black and on `#1e1e1e`.
+
+If a custom theme has the ID of a built-in theme, the custom theme replaces the built-in theme. The settings screen shows "(custom)" after the name of each custom theme.
+
+`sermo` reads the folder when it starts. If a file has a problem, `sermo` does not use that file, but it uses the other files. A message at the bottom of the screen shows the name of each bad file and the problem.
 
 ## Screens
 
@@ -191,8 +265,8 @@ The configuration file is `config.json` in the configuration directory.
 | Field | Value |
 | --- | --- |
 | `server` | The server URL. |
-| `theme` | The theme ID: `habana-neon`, `ambar-crt`, `fosforo-verde` or `malecon`. Empty means the default theme. |
-| `effect` | The effect name. Empty means a random effect. |
+| `theme` | The theme ID: `habana-neon`, `ambar-crt`, `fosforo-verde`, `malecon` or the ID of a custom theme. Empty means the default theme. |
+| `effect` | The effect name. Empty means the effect of the theme. If the theme sets no effect, empty means a random effect. |
 | `reducedMotion` | `true` stops the animations. |
 | `locale` | `es` or `en`. Empty means `es`. |
 

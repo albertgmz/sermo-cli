@@ -45,7 +45,7 @@ type model struct {
 type hideToastMsg struct{ id int }
 
 func (m *model) Init() tea.Cmd {
-	cmds := []tea.Cmd{tea.RequestBackgroundColor, m.loadSite(), wrap(m.stack[0], m.stack[0].Init()), m.nextClock()}
+	cmds := []tea.Cmd{tea.RequestBackgroundColor, m.loadThemes(), m.loadSite(), wrap(m.stack[0], m.stack[0].Init()), m.nextClock()}
 	if m.d.Cred.Token != "" {
 		cmds = append(cmds, m.loadMe(false), m.loadCounters(false), m.nextPoll())
 	}
@@ -68,7 +68,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // handle runs the app handlers in order. The first handler that knows the
 // message handles it. It returns false when no handler knows the message.
 func (m *model) handle(msg tea.Msg) (tea.Cmd, bool) {
-	for _, h := range []func(tea.Msg) (tea.Cmd, bool){m.updateFrame, m.updateNav, m.updateSession, m.updateIntent} {
+	for _, h := range []func(tea.Msg) (tea.Cmd, bool){m.updateFrame, m.updateNav, m.updateSession, m.updateIntent, m.updateThemes} {
 		if cmd, handled := h(msg); handled {
 			return cmd, true
 		}

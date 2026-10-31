@@ -69,8 +69,8 @@ func (s *settings) change(dir int) tea.Cmd {
 	c := s.d.Config
 	switch s.list.Cursor() {
 	case rowTheme:
-		c.Theme = cycle(themeIDs(), s.d.Theme.ID, dir)
-		s.d.SetTheme(theme.ByID(c.Theme))
+		c.Theme = cycle(themeIDs(s.d.Themes), s.d.Theme.ID, dir)
+		s.d.SetTheme(s.d.Themes.ByID(c.Theme))
 	case rowEffect:
 		c.Effect = cycle(effectNames(), c.Effect, dir)
 	case rowMotion:
@@ -98,8 +98,8 @@ func cycle(values []string, cur string, dir int) string {
 	return values[((i+dir)%n+n)%n]
 }
 
-func themeIDs() []string {
-	all := theme.All()
+func themeIDs(set theme.Set) []string {
+	all := set.All()
 	ids := make([]string, len(all))
 	for i, t := range all {
 		ids[i] = t.ID
@@ -120,7 +120,7 @@ func (s *settings) value(row int) string {
 	c := s.d.Config
 	switch row {
 	case rowTheme:
-		return s.d.Theme.Name
+		return themeName(s.d.Theme)
 	case rowEffect:
 		if c.Effect == "" {
 			return i18n.T("core.settings.random")
@@ -133,6 +133,14 @@ func (s *settings) value(row int) string {
 		return i18n.T("core.settings.off")
 	}
 	return i18n.T("core.lang." + i18n.Locale())
+}
+
+// themeName returns the theme name with a mark for a user theme.
+func themeName(t theme.Theme) string {
+	if t.Custom {
+		return i18n.Tf("core.settings.custom", map[string]any{"Name": t.Name})
+	}
+	return t.Name
 }
 
 func settingLabel(row int) string {
@@ -154,16 +162,18 @@ func (s *settings) View(width, height int) string {
 		st.Muted.Render(lipgloss.Wrap(i18n.T("core.settings.hint"), width, " ")), "",
 		ui.Header(st, t, i18n.T("core.settings.preview"), width),
 	}
-	used := lipgloss.Height(strings.Join(parts, "\n"))
+	// The path has its own line, so it breaks only when it is wider than the screen.
+	footer := st.Muted.Render(i18n.T("core.settings.themesDir") + "\n" + lipgloss.Wrap(s.d.ThemesDir, width, ""))
+	used := lipgloss.Height(strings.Join(parts, "\n")) + 1 + lipgloss.Height(footer)
 	if ph := height - used; ph >= 3 {
 		parts = append(parts, s.preview(width, min(ph, 9)))
 	}
-	return strings.Join(parts, "\n")
+	return strings.Join(append(parts, "", footer), "\n")
 }
 
 // preview paints the chosen effect with the theme name on a plate.
 func (s *settings) preview(width, height int) string {
-	e, ok := fx.ByName(s.d.Config.Effect, s.d.Theme.Splash)
+	e, ok := fx.ByName(splashEffect(s.d), s.d.Theme.Splash)
 	if !ok {
 		e = fx.All(s.d.Theme.Splash)[0]
 	}

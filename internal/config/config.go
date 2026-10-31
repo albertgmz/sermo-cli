@@ -38,6 +38,15 @@ func Dir() (string, error) {
 	return filepath.Join(base, "sermo"), nil
 }
 
+// ThemesDir returns the directory of the user theme files: Dir()/themes.
+func ThemesDir() (string, error) {
+	dir, err := Dir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "themes"), nil
+}
+
 // Load reads config.json. A missing file gives a zero Config and no error.
 func Load() (Config, error) {
 	var c Config

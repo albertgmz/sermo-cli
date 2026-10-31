@@ -1,0 +1,18 @@
+{
+  "name": "Habana neón",
+  "colors": {
+    "text": "#f7ecff",
+    "muted": "#b3a3cf",
+    "accent": "#ff4fd8",
+    "error": "#ff5c7a",
+    "success": "#5cffb0",
+    "warning": "#ffd166",
+    "selection": "#3a1d5c"
+  },
+  "gradients": {
+    "border": ["#ff2e97", "#b026ff", "#00e5ff"],
+    "title": ["#ff6ec7", "#ff2e97", "#00f0ff"],
+    "highlight": ["#00e5ff", "#ff4fd8"],
+    "splash": ["#12002b", "#7a00ff", "#ff2e97", "#00e5ff"]
+  }
+}

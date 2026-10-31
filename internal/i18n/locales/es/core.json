@@ -68,5 +68,22 @@
   "core.lang.en": "English",
   "core.help.title": "Ayuda",
   "core.help.global": "Teclas generales",
-  "core.help.screen": "Esta pantalla"
+  "core.help.screen": "Esta pantalla",
+  "core.settings.custom": "{{.Name}} (personalizado)",
+  "core.settings.themesDir": "Carpeta de temas propios:",
+  "core.themes.loadFailed": {
+    "one": "No se pudo cargar {{.Count}} tema: {{.Files}}",
+    "other": "No se pudieron cargar {{.Count}} temas: {{.Files}}"
+  },
+  "core.themes.err.read": "no se pudo leer el archivo",
+  "core.themes.err.tooLarge": "el archivo es muy grande, el máximo es 64 KiB",
+  "core.themes.err.syntax": "el JSON no es un tema válido",
+  "core.themes.err.id": "el nombre del archivo solo puede tener minúsculas, números y guiones",
+  "core.themes.err.missing": "falta un campo",
+  "core.themes.err.color": "un color no tiene el formato #rrggbb",
+  "core.themes.err.gradient": "un degradado necesita 2 colores o más",
+  "core.themes.err.border": "ese estilo de borde no existe",
+  "core.themes.err.font": "esa fuente del banner no existe",
+  "core.themes.err.effect": "ese efecto no existe",
+  "core.themes.err.contrast": "el texto no se lee bien"
 }

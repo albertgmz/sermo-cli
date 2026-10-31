@@ -1,11 +1,15 @@
-// Package theme holds the color themes of the client.
+// Package theme holds the color themes of the client. The built-in themes
+// are JSON files in the builtin directory. Users can add theme files of the
+// same format to a directory, see Load.
 package theme
 
 import (
+	"embed"
+	"fmt"
 	"image/color"
+	"slices"
 
 	"github.com/albertgmz/sermo-cli/internal/fx"
-	colorful "github.com/lucasb-eyer/go-colorful"
 )
 
 // Theme is a set of colors for the text and a set of gradients for the
@@ -16,17 +20,67 @@ type Theme struct {
 	Text, Muted, Accent, Error, Success, Warning, Selection color.Color
 
 	Border, Title, Highlight, Splash fx.Gradient
+
+	// BorderStyle is the line style of the frame: "double", "normal",
+	// "rounded", "thick" or "ascii".
+	BorderStyle string
+	// BannerFont is the go-figure font of the splash banner. Empty means
+	// the default fonts.
+	BannerFont string
+	// Effect is the splash effect when the config sets no effect. Empty
+	// means a random effect.
+	Effect string
+	// Custom is true for a theme from a user file.
+	Custom bool
+}
+
+//go:embed builtin/*.json
+var builtinFS embed.FS
+
+// builtinIDs are the IDs of the built-in themes in their order. The first
+// theme is the default.
+var builtinIDs = []string{"habana-neon", "ambar-crt", "fosforo-verde", "malecon"}
+
+var builtins = mustBuiltins()
+
+// mustBuiltins parses the embedded theme files. A bad file is an error in
+// the program, thus it panics.
+func mustBuiltins() []Theme {
+	out := make([]Theme, len(builtinIDs))
+	for i, id := range builtinIDs {
+		data, err := builtinFS.ReadFile("builtin/" + id + ".json")
+		if err == nil {
+			out[i], err = parse(id, data)
+		}
+		if err != nil {
+			panic(fmt.Sprintf("theme: built-in %s: %v", id, err))
+		}
+	}
+	return out
+}
+
+// Set is an ordered list of themes. The zero Set holds the built-in themes.
+type Set struct {
+	themes []Theme
+}
+
+// Builtin returns the set of the built-in themes.
+func Builtin() Set {
+	return Set{themes: slices.Clone(builtins)}
 }
 
 // All returns the themes. The first theme is the default.
-func All() []Theme {
-	return []Theme{habanaNeon(), ambarCRT(), fosforoVerde(), malecon()}
+func (s Set) All() []Theme {
+	if len(s.themes) == 0 {
+		return slices.Clone(builtins)
+	}
+	return slices.Clone(s.themes)
 }
 
 // ByID returns the theme with the given ID. It returns the default theme
 // when no theme has that ID.
-func ByID(id string) Theme {
-	all := All()
+func (s Set) ByID(id string) Theme {
+	all := s.All()
 	for _, t := range all {
 		if t.ID == id {
 			return t
@@ -35,72 +89,13 @@ func ByID(id string) Theme {
 	return all[0]
 }
 
-func habanaNeon() Theme {
-	return Theme{
-		ID: "habana-neon", Name: "Habana neón",
-		Text: hex("#F7ECFF"), Muted: hex("#B3A3CF"), Accent: hex("#FF4FD8"),
-		Error: hex("#FF5C7A"), Success: hex("#5CFFB0"), Warning: hex("#FFD166"),
-		Selection: hex("#3A1D5C"),
-		Border:    grad("#FF2E97", "#B026FF", "#00E5FF"),
-		Title:     grad("#FF6EC7", "#FF2E97", "#00F0FF"),
-		Highlight: grad("#00E5FF", "#FF4FD8"),
-		Splash:    grad("#12002B", "#7A00FF", "#FF2E97", "#00E5FF"),
-	}
+// All returns the built-in themes. The first theme is the default.
+func All() []Theme {
+	return Builtin().All()
 }
 
-func ambarCRT() Theme {
-	return Theme{
-		ID: "ambar-crt", Name: "Ámbar CRT",
-		Text: hex("#FFDDA8"), Muted: hex("#C99D5E"), Accent: hex("#FFB000"),
-		Error: hex("#FF6A3D"), Success: hex("#E8D05A"), Warning: hex("#FFCC66"),
-		Selection: hex("#4A2E00"),
-		Border:    grad("#7A4A00", "#FFB000", "#FFE0A0"),
-		Title:     grad("#FF9500", "#FFB000", "#FFE0A0"),
-		Highlight: grad("#FF9500", "#FFD27A"),
-		Splash:    grad("#1A0E00", "#6B3E00", "#FFB000", "#FFE4B0"),
-	}
-}
-
-func fosforoVerde() Theme {
-	return Theme{
-		ID: "fosforo-verde", Name: "Fósforo verde",
-		Text: hex("#CCFFD8"), Muted: hex("#74C48A"), Accent: hex("#33FF66"),
-		Error: hex("#FF7A70"), Success: hex("#7CFF9E"), Warning: hex("#E6FF66"),
-		Selection: hex("#0F3D1E"),
-		Border:    grad("#0A5C2A", "#33FF66", "#B3FFC8"),
-		Title:     grad("#33FF66", "#B3FFC8"),
-		Highlight: grad("#00FF88", "#CCFF66"),
-		Splash:    grad("#001A08", "#00662A", "#33FF66", "#D6FFE0"),
-	}
-}
-
-func malecon() Theme {
-	return Theme{
-		ID: "malecon", Name: "Malecón",
-		Text: hex("#EAF6FF"), Muted: hex("#93B6CF"), Accent: hex("#FF8A5B"),
-		Error: hex("#FF5E62"), Success: hex("#4FE3C1"), Warning: hex("#FFC15E"),
-		Selection: hex("#12355B"),
-		Border:    grad("#0B4F8A", "#1FA2D6", "#FF8A5B"),
-		Title:     grad("#FFB26B", "#FF7F6B", "#FF6F91"),
-		Highlight: grad("#4FC3F7", "#FF8A5B"),
-		Splash:    grad("#031A33", "#0B4F8A", "#1FA2D6", "#FF8A5B", "#FF6F91"),
-	}
-}
-
-func grad(stops ...string) fx.Gradient {
-	g := make(fx.Gradient, len(stops))
-	for i, s := range stops {
-		g[i] = hex(s)
-	}
-	return g
-}
-
-// hex parses a color constant. It panics on a bad constant because the
-// constants are fixed in this file and the tests parse each one.
-func hex(s string) colorful.Color {
-	c, err := colorful.Hex(s)
-	if err != nil {
-		panic(err)
-	}
-	return c
+// ByID returns the built-in theme with the given ID. It returns the default
+// theme when no built-in theme has that ID.
+func ByID(id string) Theme {
+	return Builtin().ByID(id)
 }
