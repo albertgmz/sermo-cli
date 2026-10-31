@@ -156,3 +156,22 @@ func TestThemesDirIsInsideDir(t *testing.T) {
 		t.Errorf("ThemesDir() = %q, %v, want %q", got, err, filepath.Join(dir, "themes"))
 	}
 }
+
+func TestPrefetchLevels(t *testing.T) {
+	tests := []struct {
+		value       string
+		light, full bool
+	}{
+		{"", false, false},
+		{PrefetchOff, false, false},
+		{"unknown", false, false},
+		{PrefetchLight, true, false},
+		{PrefetchFull, true, true},
+	}
+	for _, tt := range tests {
+		c := Config{Prefetch: tt.value}
+		if c.LightPrefetch() != tt.light || c.FullPrefetch() != tt.full {
+			t.Errorf("Prefetch %q: light %v full %v, want %v %v", tt.value, c.LightPrefetch(), c.FullPrefetch(), tt.light, tt.full)
+		}
+	}
+}

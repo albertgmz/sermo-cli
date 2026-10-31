@@ -284,14 +284,15 @@ func (r *reader) loaded(msg readerMsg) tea.Cmd {
 	}
 	r.renderAll()
 	r.jumpTo(r.focus)
-	return r.markRead()
+	return r.markRead(r.nextPostsWarm())
 }
 
 // markRead marks the thread read up to the last post of the page. It runs
-// once for each page and only for a member.
-func (r *reader) markRead() tea.Cmd {
+// once for each page and only for a member. Then it calls then, if not nil.
+// A write clears the page cache, so a warm must start after the write.
+func (r *reader) markRead(then func()) tea.Cmd {
 	if !r.member() || len(r.posts) == 0 || r.marked[r.page] {
-		return nil
+		return warmCmd(then)
 	}
 	r.marked[r.page] = true
 	c, id, pos := r.d.API, r.threadID, r.posts[len(r.posts)-1].Position
@@ -299,6 +300,9 @@ func (r *reader) markRead() tea.Cmd {
 		_, err := c.MarkThreadRead(bg(), id, pos)
 		if api.IsUnauthorized(err) {
 			return ui.UnauthorizedMsg{}
+		}
+		if then != nil {
+			then()
 		}
 		return nil
 	}

@@ -51,6 +51,7 @@ func (c *Client) MarkNodeRead(ctx context.Context, nodeID int) error {
 		return err
 	}
 	c.cache.drop(keyNodes)
+	c.pages.drop(prefixThreads)
 	return check(resp.HTTPResponse, resp.Body)
 }
 
@@ -61,6 +62,7 @@ func (c *Client) MarkAllRead(ctx context.Context) error {
 		return err
 	}
 	c.cache.drop(keyNodes)
+	c.pages.drop(prefixThreads)
 	return check(resp.HTTPResponse, resp.Body)
 }
 

@@ -30,6 +30,8 @@ type Options struct {
 	HTTP *http.Client
 	// Sleep waits before a retry after a 429. When it is nil, the Client uses a timer.
 	Sleep func(context.Context, time.Duration) error
+	// Context ends the prefetch requests when it ends. When it is nil, the Client uses context.Background.
+	Context context.Context
 }
 
 // Client calls the Sermo API. It keeps a cache of site metadata for its life. It is safe for concurrent use.
@@ -38,6 +40,11 @@ type Client struct {
 	http   *http.Client
 	server string
 	cache  cache
+	ctx    context.Context
+	cancel context.CancelFunc
+	now    func() time.Time
+	pages  pageCache
+	queue  queue
 }
 
 // New returns a Client for o.Server.
@@ -68,7 +75,12 @@ func New(o Options) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{gen: g, http: hc, server: server}, nil
+	parent := o.Context
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithCancel(parent)
+	return &Client{gen: g, http: hc, server: server, ctx: ctx, cancel: cancel, now: time.Now}, nil
 }
 
 // doJSON sends a request for an operation that package gen does not have.
@@ -103,3 +115,7 @@ func (c *Client) doJSON(ctx context.Context, method, path string, in, out any) e
 	}
 	return json.Unmarshal(raw, out)
 }
+
+// Close stops the prefetch of c. Jobs that wait do not run, and a prefetch request in flight stops.
+// Other requests of c still work.
+func (c *Client) Close() { c.cancel() }

@@ -169,7 +169,7 @@ func (s *nodes) loaded(msg nodesMsg) tea.Cmd {
 	s.setUnread(msg.unread)
 	s.list.SetLen(len(s.items))
 	s.skipCategory(1)
-	return nil
+	return s.warmUnread()
 }
 
 func (s *nodes) key(k tea.KeyPressMsg) tea.Cmd {

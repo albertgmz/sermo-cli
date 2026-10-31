@@ -23,7 +23,22 @@ type Config struct {
 	Effect        string `json:"effect,omitempty"`        // effect name; "" means a random effect
 	ReducedMotion bool   `json:"reducedMotion,omitempty"` // true stops animations
 	Locale        string `json:"locale,omitempty"`        // "es" or "en"; "" means "es"
+	Prefetch      string `json:"prefetch,omitempty"`      // a Prefetch value; "" means PrefetchOff
 }
+
+// The values of Config.Prefetch. PrefetchLight gets the next page of a list in the background.
+// PrefetchFull also gets the first thread page of the unread forums.
+const (
+	PrefetchOff   = "off"
+	PrefetchLight = "light"
+	PrefetchFull  = "full"
+)
+
+// LightPrefetch reports whether the setting is PrefetchLight or PrefetchFull.
+func (c Config) LightPrefetch() bool { return c.Prefetch == PrefetchLight || c.FullPrefetch() }
+
+// FullPrefetch reports whether the setting is PrefetchFull.
+func (c Config) FullPrefetch() bool { return c.Prefetch == PrefetchFull }
 
 // Dir returns the configuration directory.
 // It is $SERMO_CONFIG_DIR when set, else os.UserConfigDir()/sermo.

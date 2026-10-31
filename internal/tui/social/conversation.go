@@ -190,12 +190,26 @@ func (c *conversation) loaded(msg messagesMsg) tea.Cmd {
 		jump, c.pendingJump = c.pendingJump, 0
 	}
 	c.show(c.indexOf(jump))
+	warm := c.warmNextPage()
 	if c.read {
-		return nil
+		return warm
 	}
 	c.read = true
 	client, id := c.d.API, c.id
-	return func() tea.Msg { return apiDoneMsg{err: client.MarkConversationRead(bg, id)} }
+	return tea.Batch(warm, func() tea.Msg { return apiDoneMsg{err: client.MarkConversationRead(bg, id)} })
+}
+
+// warmNextPage warms the page after the shown page when the setting allows a prefetch.
+// The Cmd only adds a job to the prefetch queue.
+func (c *conversation) warmNextPage() tea.Cmd {
+	if !c.d.Config.LightPrefetch() || c.page >= c.pages {
+		return nil
+	}
+	client, id, p := c.d.API, c.id, c.page+1
+	return func() tea.Msg {
+		client.WarmMessages(id, false, api.PageOpts{Page: p, Limit: pageSize})
+		return nil
+	}
 }
 
 func (c *conversation) indexOf(messageID int) int {

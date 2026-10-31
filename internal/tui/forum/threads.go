@@ -220,10 +220,11 @@ func (s *threadList) loaded(msg threadsMsg) tea.Cmd {
 		s.pages = max(s.pages, s.page+1)
 	}
 	s.list.SetLen(len(s.rows))
-	if !msg.refresh {
-		s.list.Select(0)
+	if msg.refresh {
+		return nil
 	}
-	return nil
+	s.list.Select(0)
+	return s.warmNextPage()
 }
 
 func (s *threadList) marked(err error) tea.Cmd {

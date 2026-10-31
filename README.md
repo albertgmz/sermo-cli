@@ -269,6 +269,7 @@ The configuration file is `config.json` in the configuration directory.
 | `effect` | The effect name. Empty means the effect of the theme. If the theme sets no effect, empty means a random effect. |
 | `reducedMotion` | `true` stops the animations. |
 | `locale` | `es` or `en`. Empty means `es`. |
+| `prefetch` | `off`, `light` or `full`. Empty means `off`. Refer to [Data usage](#data-usage). |
 
 The settings screen writes this file. You can also edit it.
 
@@ -279,6 +280,16 @@ The settings screen writes this file. You can also edit it.
 ## Data usage
 
 `sermo` asks the server only for the data that a screen needs. It keeps the forum list, the site data, the thread prefixes and the reaction types in memory for the session. It asks for new notification counts 1 time each minute. `sermo` does not download images. `sermo version` reads only the start of the API document of the server.
+
+The `prefetch` setting gets pages before you open them. The default value is `off`. With `off`, `sermo` gets a page only when you open it.
+
+| Value | Function |
+| --- | --- |
+| `off` | No prefetch. |
+| `light` | After a thread page, a thread list page or a conversation page opens, `sermo` gets the next page. |
+| `full` | The `light` function. After the forum list opens, `sermo` also gets the first thread page of 5 unread forums. |
+
+The `light` and `full` values use more data. Do not use them on a slow or costly connection. Prefetch gets only text pages, not images. It sends 1 request at a time. If the server sends a rate limit, prefetch stops for 60 seconds. A prefetched page stays in memory for 2 minutes. `sermo` shows it 1 time. You can set the value on the settings screen.
 
 ## Development
 

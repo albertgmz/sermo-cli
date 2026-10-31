@@ -18,6 +18,7 @@ func (c *Client) Bookmarks(ctx context.Context, p PageOpts) (*Page[gen.Bookmark]
 
 // SetBookmark adds a bookmark when on is true, and removes it when on is false.
 func (c *Client) SetBookmark(ctx context.Context, contentType gen.BookmarksSetJSONBodyContentType, contentID int, on bool) error {
+	defer c.pages.drop(prefixPosts)
 	body := gen.BookmarksSetJSONRequestBody{ContentType: contentType, ContentId: contentID, Bookmarked: on}
 	resp, err := c.gen.BookmarksSetWithResponse(ctx, body)
 	if err != nil {

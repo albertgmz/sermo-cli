@@ -1,0 +1,7 @@
+{
+  "prefetch.settings.label": "Precarga",
+  "prefetch.level.off": "Desactivada",
+  "prefetch.level.light": "Ligera",
+  "prefetch.level.full": "Completa",
+  "prefetch.settings.note": "Precarga: Ligera y Completa bajan páginas antes de que las abras. Usan más datos."
+}

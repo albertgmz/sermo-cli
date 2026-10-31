@@ -87,7 +87,7 @@ func (c *cli) runTUI(cmd *cobra.Command, _ []string) error {
 	}
 	store := auth.NewStore()
 	cred := auth.Resolve(store, c.server)
-	client, err := api.New(api.Options{Server: c.server, Token: cred.Token, UserAgent: buildinfo.UserAgent()})
+	client, err := api.New(api.Options{Server: c.server, Token: cred.Token, UserAgent: buildinfo.UserAgent(), Context: cmd.Context()})
 	if err != nil {
 		return err
 	}

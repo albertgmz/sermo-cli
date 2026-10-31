@@ -7,7 +7,14 @@ import (
 )
 
 // Posts returns one page of the posts of a thread in position order.
+// A page from WarmPosts comes from the page cache.
 func (c *Client) Posts(ctx context.Context, threadID int, p PageOpts) (*PostList, error) {
+	return fromCache(c, ctx, postsKey(threadID, p), func(ctx context.Context) (*PostList, error) {
+		return c.fetchPosts(ctx, threadID, p)
+	})
+}
+
+func (c *Client) fetchPosts(ctx context.Context, threadID int, p PageOpts) (*PostList, error) {
 	params := &gen.PostsListParams{Page: optInt(p.Page), Cursor: optString(p.Cursor), Limit: optInt(p.Limit)}
 	resp, err := c.gen.PostsListWithResponse(ctx, threadID, params)
 	if err != nil {
@@ -27,6 +34,7 @@ func (c *Client) Post(ctx context.Context, postID int) (*gen.PostDetail, error) 
 
 // Reply adds a post with the BB code body to the thread.
 func (c *Client) Reply(ctx context.Context, threadID int, body string) (*gen.PostDetail, error) {
+	defer c.pages.drop(threadPages(threadID), prefixThreads)
 	resp, err := c.gen.PostsCreateWithResponse(ctx, threadID, gen.PostsCreateJSONRequestBody{Body: body})
 	if err != nil {
 		return nil, err
@@ -36,6 +44,7 @@ func (c *Client) Reply(ctx context.Context, threadID int, body string) (*gen.Pos
 
 // EditPost replaces the BB code body of a post.
 func (c *Client) EditPost(ctx context.Context, postID int, body string) (*gen.PostDetail, error) {
+	defer c.pages.drop(prefixPosts)
 	resp, err := c.gen.PostsUpdateWithResponse(ctx, postID, gen.PostsUpdateJSONRequestBody{Body: body})
 	if err != nil {
 		return nil, err
@@ -67,6 +76,7 @@ func (c *Client) Poll(ctx context.Context, threadID int) (*PollView, error) {
 
 // Vote sends the answers for one question of a poll and returns the poll after the vote.
 func (c *Client) Vote(ctx context.Context, pollID, questionID int, answerIDs []int) (*gen.Poll, error) {
+	defer c.pages.drop(prefixPosts)
 	body := gen.PollsVoteJSONRequestBody{QuestionId: questionID, AnswerIds: answerIDs}
 	resp, err := c.gen.PollsVoteWithResponse(ctx, pollID, body)
 	if err != nil {

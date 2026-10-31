@@ -1,0 +1,7 @@
+{
+  "prefetch.settings.label": "Prefetch",
+  "prefetch.level.off": "Off",
+  "prefetch.level.light": "Light",
+  "prefetch.level.full": "Full",
+  "prefetch.settings.note": "Prefetch: Light and Full get pages before you open them. They use more data."
+}

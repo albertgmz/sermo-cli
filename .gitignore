@@ -6,3 +6,6 @@
 # Agent configuration
 CLAUDE.md
 .claude/
+
+# Browser tool output
+.playwright-mcp/

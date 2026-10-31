@@ -20,13 +20,18 @@ const (
 	rowEffect
 	rowMotion
 	rowLanguage
+	rowPrefetch
 	settingsRows
 )
 
 var locales = []string{"es", "en"}
 
-// settings changes the theme, the splash effect, the reduced motion and the
-// language. Each change applies at once and is saved to the config file.
+// prefetchLevels are the values of the prefetch row. "" is the default: no prefetch.
+var prefetchLevels = []string{"", config.PrefetchLight, config.PrefetchFull}
+
+// settings changes the theme, the splash effect, the reduced motion, the
+// language and the prefetch. Each change applies at once and is saved to the
+// config file.
 type settings struct {
 	d    *ui.Deps
 	list ui.List
@@ -78,6 +83,8 @@ func (s *settings) change(dir int) tea.Cmd {
 	case rowLanguage:
 		c.Locale = cycle(locales, i18n.Locale(), dir)
 		i18n.SetLocale(c.Locale)
+	case rowPrefetch:
+		c.Prefetch = cycle(prefetchLevels, c.Prefetch, dir)
 	}
 	if err := config.Save(*c); err != nil {
 		return ui.Toast(i18n.T("core.toast.saveFailed"), ui.ToastError)
@@ -131,8 +138,21 @@ func (s *settings) value(row int) string {
 			return i18n.T("core.settings.on")
 		}
 		return i18n.T("core.settings.off")
+	case rowPrefetch:
+		return prefetchName(c)
 	}
 	return i18n.T("core.lang." + i18n.Locale())
+}
+
+// prefetchName returns the name of the prefetch level. An unknown value is off.
+func prefetchName(c *config.Config) string {
+	switch {
+	case c.FullPrefetch():
+		return i18n.T("prefetch.level.full")
+	case c.LightPrefetch():
+		return i18n.T("prefetch.level.light")
+	}
+	return i18n.T("prefetch.level.off")
 }
 
 // themeName returns the theme name with a mark for a user theme.
@@ -144,7 +164,10 @@ func themeName(t theme.Theme) string {
 }
 
 func settingLabel(row int) string {
-	return i18n.T([]string{"core.settings.theme", "core.settings.effect", "core.settings.motion", "core.settings.language"}[row])
+	return i18n.T([]string{
+		"core.settings.theme", "core.settings.effect", "core.settings.motion", "core.settings.language",
+		"prefetch.settings.label",
+	}[row])
 }
 
 func (s *settings) View(width, height int) string {
@@ -159,7 +182,8 @@ func (s *settings) View(width, height int) string {
 	})
 	parts := []string{
 		ui.Header(st, t, s.Title(), width), "", rows, "",
-		st.Muted.Render(lipgloss.Wrap(i18n.T("core.settings.hint"), width, " ")), "",
+		st.Muted.Render(lipgloss.Wrap(i18n.T("core.settings.hint"), width, " ")),
+		st.Muted.Render(lipgloss.Wrap(i18n.T("prefetch.settings.note"), width, " ")), "",
 		ui.Header(st, t, i18n.T("core.settings.preview"), width),
 	}
 	// The path has its own line, so it breaks only when it is wider than the screen.

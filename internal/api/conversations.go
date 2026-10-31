@@ -37,7 +37,15 @@ func (c *Client) Conversation(ctx context.Context, conversationID int) (*gen.Con
 
 // Messages returns one page of the messages of a conversation.
 // With newestFirst true, the list starts at the latest message and the cursor goes to older messages.
+// A page from WarmMessages comes from the page cache.
 func (c *Client) Messages(ctx context.Context, conversationID int, newestFirst bool, p PageOpts) (*Page[gen.Message], error) {
+	key := messagesKey(conversationID, newestFirst, p)
+	return fromCache(c, ctx, key, func(ctx context.Context) (*Page[gen.Message], error) {
+		return c.fetchMessages(ctx, conversationID, newestFirst, p)
+	})
+}
+
+func (c *Client) fetchMessages(ctx context.Context, conversationID int, newestFirst bool, p PageOpts) (*Page[gen.Message], error) {
 	params := &gen.ConversationsListMessagesParams{Page: optInt(p.Page), Cursor: optString(p.Cursor), Limit: optInt(p.Limit)}
 	if newestFirst {
 		order := gen.Newest
@@ -52,6 +60,7 @@ func (c *Client) Messages(ctx context.Context, conversationID int, newestFirst b
 
 // ReplyConversation adds a message with the BB code body to the conversation.
 func (c *Client) ReplyConversation(ctx context.Context, conversationID int, body string) (*gen.Message, error) {
+	defer c.pages.drop(conversationPages(conversationID))
 	resp, err := c.gen.ConversationsReplyWithResponse(ctx, conversationID, gen.ConversationsReplyJSONRequestBody{Body: body})
 	if err != nil {
 		return nil, err

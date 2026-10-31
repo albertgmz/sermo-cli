@@ -60,6 +60,7 @@ func (c *Client) SetReaction(ctx context.Context, ct ContentType, contentID, rea
 	in := struct {
 		ReactionTypeID int `json:"reactionTypeId"`
 	}{reactionTypeID}
+	defer c.pages.drop(prefixPosts, prefixMessages)
 	var out gen.ReactionSummary
 	if err := c.doJSON(ctx, http.MethodPut, reactionPath(ct, contentID), in, &out); err != nil {
 		return nil, err
@@ -70,6 +71,7 @@ func (c *Client) SetReaction(ctx context.Context, ct ContentType, contentID, rea
 // RemoveReaction removes the reaction of the viewer from an item.
 // It returns the reaction counts of the item after the change.
 func (c *Client) RemoveReaction(ctx context.Context, ct ContentType, contentID int) (*gen.ReactionSummary, error) {
+	defer c.pages.drop(prefixPosts, prefixMessages)
 	var out gen.ReactionSummary
 	if err := c.doJSON(ctx, http.MethodDelete, reactionPath(ct, contentID), nil, &out); err != nil {
 		return nil, err

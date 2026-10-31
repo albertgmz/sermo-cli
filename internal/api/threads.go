@@ -8,7 +8,14 @@ import (
 
 // Threads returns one page of the threads in the node nodeID, newest activity first.
 // Use prefixID 0 for all prefixes. Sticky threads come only on the first page.
+// A page from WarmThreads comes from the page cache.
 func (c *Client) Threads(ctx context.Context, nodeID, prefixID int, p PageOpts) (*ThreadList, error) {
+	return fromCache(c, ctx, threadsKey(nodeID, prefixID, p), func(ctx context.Context) (*ThreadList, error) {
+		return c.fetchThreads(ctx, nodeID, prefixID, p)
+	})
+}
+
+func (c *Client) fetchThreads(ctx context.Context, nodeID, prefixID int, p PageOpts) (*ThreadList, error) {
 	params := &gen.ThreadsListParams{
 		PrefixId: optInt(prefixID),
 		Page:     optInt(p.Page),
@@ -33,6 +40,7 @@ func (c *Client) Thread(ctx context.Context, threadID int) (*ThreadView, error) 
 
 // CreateThread starts a thread in the node nodeID.
 func (c *Client) CreateThread(ctx context.Context, nodeID int, body gen.ThreadsCreateJSONRequestBody) (*NewThread, error) {
+	defer c.pages.drop(prefixThreads)
 	resp, err := c.gen.ThreadsCreateWithResponse(ctx, nodeID, body)
 	if err != nil {
 		return nil, err
@@ -51,6 +59,7 @@ func (c *Client) LocateUnread(ctx context.Context, threadID int) (*UnreadPost, e
 
 // MarkThreadRead marks the thread as read up to the post at position. It returns the stored read position.
 func (c *Client) MarkThreadRead(ctx context.Context, threadID, position int) (int, error) {
+	defer c.pages.drop(threadPages(threadID), prefixThreads)
 	resp, err := c.gen.ThreadsMarkReadWithResponse(ctx, threadID, gen.ThreadsMarkReadJSONRequestBody{Position: position})
 	if err != nil {
 		return 0, err

@@ -23,10 +23,11 @@ type transport struct {
 }
 
 // RoundTrip sends req. On a 429 with a short wait it waits and sends req again one time.
+// It does not send a prefetch request again.
 func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	out := t.prepare(req)
 	resp, err := t.base.RoundTrip(out)
-	if err != nil || resp.StatusCode != http.StatusTooManyRequests {
+	if err != nil || resp.StatusCode != http.StatusTooManyRequests || isPrefetch(req.Context()) {
 		return resp, err
 	}
 	wait, ok := retryAfter(resp.Header, time.Now())
