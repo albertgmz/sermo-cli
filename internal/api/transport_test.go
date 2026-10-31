@@ -193,3 +193,26 @@ func TestTransportStopsWhenSleepFails(t *testing.T) {
 		t.Errorf("err = %v, want context.Canceled", err)
 	}
 }
+
+func TestTransportKeepsTokenFromOtherHostOnRedirect(t *testing.T) {
+	var authB []string
+	b := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authB = r.Header.Values("Authorization")
+		writeJSON(w, http.StatusOK, siteJSON)
+	}))
+	t.Cleanup(b.Close)
+	var authA string
+	c, _ := newTestClient(t, "tok123", func(w http.ResponseWriter, r *http.Request) {
+		authA = r.Header.Get("Authorization")
+		http.Redirect(w, r, b.URL+r.URL.Path, http.StatusFound)
+	})
+	if _, err := c.Site(context.Background()); err != nil {
+		t.Fatalf("Site: %v", err)
+	}
+	if authA != "Bearer tok123" {
+		t.Errorf("server A Authorization = %q, want %q", authA, "Bearer tok123")
+	}
+	if len(authB) != 0 {
+		t.Errorf("server B Authorization = %q, want none", authB)
+	}
+}

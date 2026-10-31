@@ -50,7 +50,7 @@ func (m *model) updateIntent(msg tea.Msg) (tea.Cmd, bool) {
 func (m *model) hotkey(k string) tea.Cmd {
 	switch k {
 	case "f":
-		m.stack = m.stack[:1]
+		return m.home()
 	case "m":
 		return m.members(func() ui.Screen { return social.NewConversations(m.d) }, true)
 	case "n":
@@ -71,6 +71,15 @@ func (m *model) hotkey(k string) tea.Cmd {
 		m.confirmQuit = true
 	}
 	return nil
+}
+
+// home closes all screens above home. Home gets ui.ResumedMsg.
+func (m *model) home() tea.Cmd {
+	if len(m.stack) == 1 {
+		return nil
+	}
+	m.stack = m.stack[:1]
+	return m.forward(ui.ResumedMsg{})
 }
 
 // members shows the screen of mk for a member. A guest gets the sign-in
@@ -102,12 +111,14 @@ func (m *model) started(s ui.Screen) tea.Cmd {
 	cw, ch := m.contentSize()
 	s, cmd := s.Update(tea.WindowSizeMsg{Width: cw, Height: ch})
 	m.stack[len(m.stack)-1] = s
-	return tea.Batch(cmd, s.Init())
+	return wrap(s, tea.Batch(cmd, s.Init()))
 }
 
+// pop closes the top screen. The new top screen gets ui.ResumedMsg.
 func (m *model) pop() tea.Cmd {
-	if len(m.stack) > 1 {
-		m.stack = m.stack[:len(m.stack)-1]
+	if len(m.stack) == 1 {
+		return nil
 	}
-	return nil
+	m.stack = m.stack[:len(m.stack)-1]
+	return m.forward(ui.ResumedMsg{})
 }

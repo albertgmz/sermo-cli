@@ -2,6 +2,7 @@ package ui
 
 import (
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -11,10 +12,17 @@ import (
 	"github.com/albertgmz/sermo-cli/internal/theme"
 )
 
+// highlightTime is how long the highlight of the selected row animates
+// after the last cursor move.
+const highlightTime = 2 * time.Second
+
 // List is a cursor over a list of selectable rows. The screen keeps the
-// items and draws each row. The zero value is an empty list.
+// items and draws each row. The zero value is an empty list that uses the
+// system clock.
 type List struct {
 	n, cursor, offset, height int
+	now                       func() time.Time
+	moved                     time.Time
 }
 
 // The keys of a List.
@@ -39,10 +47,36 @@ func ListKeys() []key.Binding {
 	}
 }
 
+// SetClock sets the clock that records the time of the cursor moves. A nil
+// clock is the system clock.
+func (l *List) SetClock(now func() time.Time) { l.now = now }
+
+// Reset makes the list empty. It keeps the clock.
+func (l *List) Reset() { *l = List{now: l.now} }
+
+// Animating reports whether the highlight animates at the time now. It is
+// true for 2 s after the last cursor move and after the list first gets
+// rows.
+func (l List) Animating(now time.Time) bool {
+	return l.n > 0 && now.Sub(l.moved) < highlightTime
+}
+
 // SetLen sets the number of rows. It keeps the cursor on a row.
 func (l *List) SetLen(n int) {
+	if l.n == 0 && n > 0 {
+		l.touch()
+	}
 	l.n = max(n, 0)
 	l.move(0)
+}
+
+// touch records the time of a cursor move.
+func (l *List) touch() {
+	if l.now == nil {
+		l.moved = time.Now()
+		return
+	}
+	l.moved = l.now()
 }
 
 // SetHeight sets the number of visible rows.
@@ -99,7 +133,11 @@ func (l *List) key(msg tea.KeyPressMsg) bool {
 }
 
 func (l *List) move(d int) {
+	before := l.cursor
 	l.cursor = max(0, min(l.cursor+d, l.n-1))
+	if l.cursor != before {
+		l.touch()
+	}
 	h := max(l.height, 1)
 	if l.cursor < l.offset {
 		l.offset = l.cursor

@@ -34,6 +34,7 @@ type settings struct {
 
 func newSettings(d *ui.Deps) *settings {
 	s := &settings{d: d}
+	s.list.SetClock(d.Now)
 	s.list.SetLen(settingsRows)
 	s.list.SetHeight(settingsRows)
 	return s
@@ -42,7 +43,7 @@ func newSettings(d *ui.Deps) *settings {
 func (s *settings) Init() tea.Cmd       { return nil }
 func (s *settings) Title() string       { return i18n.T("core.settings.title") }
 func (s *settings) CapturesInput() bool { return false }
-func (s *settings) Animating() bool     { return s.d.Animate() }
+func (s *settings) Animating() bool     { return s.d.Animate() && s.list.Animating(s.d.Now()) }
 func (s *settings) Keys() []key.Binding {
 	return append(ui.ListKeys()[:1],
 		key.NewBinding(key.WithKeys("left", "right", "h", "l", "enter", "space"), key.WithHelp("← →", i18n.T("core.key.change"))))

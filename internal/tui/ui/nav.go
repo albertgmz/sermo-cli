@@ -20,6 +20,15 @@ type PopMsg struct{}
 // ReplaceMsg tells the app to put Screen in the place of the current screen.
 type ReplaceMsg struct{ Screen Screen }
 
+// ResumedMsg tells a screen that it is the top screen again, after the app
+// closed the screen above it.
+type ResumedMsg struct{}
+
+// CountersChangedMsg tells the app that the notification or message
+// counters changed on the server. The app loads them again and shows no
+// toast for the change.
+type CountersChangedMsg struct{}
+
 // ToastKind sets the color of a toast.
 type ToastKind int
 

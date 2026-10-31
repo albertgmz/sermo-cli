@@ -29,6 +29,7 @@ type fakeSermo struct {
 	conversations atomic.Int32
 	meStatus      atomic.Int32 // 0 means 200
 	tokenPolls    atomic.Int32
+	unreadCalls   atomic.Int32 // signed-in calls of nodes.unread
 }
 
 const testToken = "tok-123"
@@ -53,6 +54,12 @@ func newFakeSermo(t *testing.T) *fakeSermo {
 	})
 	mux.HandleFunc("GET /api/v1/nodes", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{"items": []any{}})
+	})
+	mux.HandleFunc("GET /api/v1/nodes/unread", func(w http.ResponseWriter, r *http.Request) {
+		if f.authorized(r) {
+			f.unreadCalls.Add(1)
+		}
+		writeJSON(w, 200, map[string]any{"nodeIds": []int{}})
 	})
 	mux.HandleFunc("POST /api/auth/device/code", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{
@@ -160,7 +167,11 @@ func drive(m *model, cmd tea.Cmd, wait time.Duration) []tea.Msg {
 			queue = append(queue, batch...)
 			continue
 		}
-		out = append(out, msg)
+		if o, owned := msg.(ownedMsg); owned {
+			out = append(out, o.msg)
+		} else {
+			out = append(out, msg)
+		}
 		_, next := m.Update(msg)
 		queue = append(queue, next)
 	}

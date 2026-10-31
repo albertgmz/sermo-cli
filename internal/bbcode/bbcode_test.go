@@ -24,6 +24,24 @@ func TestQuote(t *testing.T) {
 	}
 }
 
+func TestQuoteMessage(t *testing.T) {
+	cases := []struct {
+		name, author  string
+		message, user int
+		want          string
+	}{
+		{"member", "Ana", 77, 12, `[QUOTE="Ana, convMessage: 77, member: 12"]Hi[/QUOTE]`},
+		{"no member", "Ana", 77, 0, `[QUOTE="Ana, convMessage: 77"]Hi[/QUOTE]`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := QuoteMessage(c.author, c.message, c.user, " Hi "); got != c.want {
+				t.Fatalf("got  %q\nwant %q", got, c.want)
+			}
+		})
+	}
+}
+
 func TestQuoteKeepsBalancedNestedQuotes(t *testing.T) {
 	body := `[QUOTE="ana, post: 1"]old[/QUOTE]new`
 	want := `[QUOTE="ember, post: 5, member: 9"][QUOTE="ana, post: 1"]old[/QUOTE]new[/QUOTE]`

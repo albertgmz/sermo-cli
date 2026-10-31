@@ -68,11 +68,5 @@
   "core.lang.en": "English",
   "core.help.title": "Ayuda",
   "core.help.global": "Teclas generales",
-  "core.help.screen": "Esta pantalla",
-  "core.stub.text": "Esta pantalla llega pronto.",
-  "core.stub.node": "Foro {{.ID}}",
-  "core.stub.thread": "Tema {{.ID}}",
-  "core.stub.conversation": "Conversación {{.ID}}",
-  "core.stub.profile": "Perfil {{.ID}}",
-  "core.stub.composer": "Escribir"
+  "core.help.screen": "Esta pantalla"
 }

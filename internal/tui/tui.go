@@ -38,6 +38,9 @@ type Options struct {
 	Start Start
 	// Sleep waits between the polls of the device login. Nil uses a timer.
 	Sleep func(context.Context, time.Duration) error
+	// Locale sets the language for this run only. It is not saved. Empty
+	// uses d.Config.Locale.
+	Locale string
 }
 
 // Run shows the terminal client until the user quits or ctx ends. Run sets
@@ -64,6 +67,9 @@ func newModel(ctx context.Context, d *ui.Deps, opts Options) *model {
 		d.Render = render.New(d.Server)
 	}
 	i18n.SetLocale(d.Config.Locale)
+	if opts.Locale != "" {
+		i18n.SetLocale(opts.Locale)
+	}
 	d.SetTheme(theme.ByID(d.Config.Theme))
 	d.Glamour = glamourStyle(d, true)
 	m := &model{
@@ -72,6 +78,7 @@ func newModel(ctx context.Context, d *ui.Deps, opts Options) *model {
 		opts:  opts,
 		start: time.Now(),
 		site:  hostOf(d.Server),
+		slide: newToastSlide(),
 		stack: []ui.Screen{forum.NewNodes(d)},
 	}
 	if opts.Start == StartSplash {

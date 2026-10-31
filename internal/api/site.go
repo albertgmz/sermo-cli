@@ -80,16 +80,3 @@ func (c *Client) ThreadPrefixes(ctx context.Context, nodeID int) ([]gen.ThreadPr
 		return body.Items, nil
 	})
 }
-
-// Groups returns the user groups.
-func (c *Client) Groups(ctx context.Context) ([]gen.Group, error) {
-	resp, err := c.gen.GroupsListWithResponse(ctx, &gen.GroupsListParams{})
-	if err != nil {
-		return nil, err
-	}
-	body, err := result(resp.HTTPResponse, resp.Body, resp.JSON200)
-	if err != nil {
-		return nil, err
-	}
-	return body.Items, nil
-}

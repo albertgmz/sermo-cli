@@ -146,42 +146,15 @@ func (e FeatureKind) Valid() bool {
 	}
 }
 
-// Defines values for GroupBuiltin.
-const (
-	GroupBuiltinAdmin       GroupBuiltin = "admin"
-	GroupBuiltinGuest       GroupBuiltin = "guest"
-	GroupBuiltinModerator   GroupBuiltin = "moderator"
-	GroupBuiltinRegistered  GroupBuiltin = "registered"
-	GroupBuiltinUnconfirmed GroupBuiltin = "unconfirmed"
-)
-
-// Valid indicates whether the value is a known member of the GroupBuiltin enum.
-func (e GroupBuiltin) Valid() bool {
-	switch e {
-	case GroupBuiltinAdmin:
-		return true
-	case GroupBuiltinGuest:
-		return true
-	case GroupBuiltinModerator:
-		return true
-	case GroupBuiltinRegistered:
-		return true
-	case GroupBuiltinUnconfirmed:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for GuestAuthorKind.
 const (
-	GuestAuthorKindGuest GuestAuthorKind = "guest"
+	Guest GuestAuthorKind = "guest"
 )
 
 // Valid indicates whether the value is a known member of the GuestAuthorKind enum.
 func (e GuestAuthorKind) Valid() bool {
 	switch e {
-	case GuestAuthorKindGuest:
+	case Guest:
 		return true
 	default:
 		return false
@@ -1378,23 +1351,6 @@ type GlobalPermissions struct {
 	IsModerator           bool `json:"isModerator"`
 }
 
-// Group defines model for Group.
-type Group struct {
-	Badge       string        `json:"badge"`
-	Builtin     *GroupBuiltin `json:"builtin"`
-	Description string        `json:"description"`
-	Id          int           `json:"id"`
-	IsStaff     bool          `json:"isStaff"`
-	MemberCount *int          `json:"memberCount"`
-	NameColorId *int          `json:"nameColorId"`
-	Rank        int           `json:"rank"`
-	Title       string        `json:"title"`
-	UserTitle   string        `json:"userTitle"`
-}
-
-// GroupBuiltin defines model for Group.Builtin.
-type GroupBuiltin string
-
 // GuestAuthor defines model for GuestAuthor.
 type GuestAuthor struct {
 	Kind GuestAuthorKind `json:"kind"`
@@ -2352,11 +2308,6 @@ type ConversationsLocateUnreadParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
-// GroupsListParams defines parameters for GroupsList.
-type GroupsListParams struct {
-	Counts *bool `form:"counts,omitempty" json:"counts,omitempty"`
-}
-
 // NodesListParams defines parameters for NodesList.
 type NodesListParams struct {
 	Manage *bool `form:"manage,omitempty" json:"manage,omitempty"`
@@ -3212,11 +3163,6 @@ type ClientInterface interface {
 	// Corresponds with GET /api/v1/conversations/{conversationId}/unread (the `ConversationsLocateUnread` operationId).
 	ConversationsLocateUnread(ctx context.Context, conversationId int, params *ConversationsLocateUnreadParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GroupsList List all groups, highest rank first. `memberCount` is null unless `counts` is true (counting members is the costly part, and most screens only need names). Requires any of admin.groups, admin.permissions, admin.promotions or admin.members (the screens those open need group names); the writes need admin.groups.
-	//
-	// Corresponds with GET /api/v1/groups (the `GroupsList` operationId).
-	GroupsList(ctx context.Context, params *GroupsListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// AuthMe The current user (null for guests), a summary of their permissions, and every global permission resolved for them.
 	//
 	// Corresponds with GET /api/v1/me (the `AuthMe` operationId).
@@ -3785,21 +3731,6 @@ func (c *Client) ConversationsMarkRead(ctx context.Context, conversationId int, 
 // Corresponds with GET /api/v1/conversations/{conversationId}/unread (the `ConversationsLocateUnread` operationId).
 func (c *Client) ConversationsLocateUnread(ctx context.Context, conversationId int, params *ConversationsLocateUnreadParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewConversationsLocateUnreadRequest(c.Server, conversationId, params)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-// GroupsList List all groups, highest rank first. `memberCount` is null unless `counts` is true (counting members is the costly part, and most screens only need names). Requires any of admin.groups, admin.permissions, admin.promotions or admin.members (the screens those open need group names); the writes need admin.groups.
-//
-// Corresponds with GET /api/v1/groups (the `GroupsList` operationId).
-func (c *Client) GroupsList(ctx context.Context, params *GroupsListParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGroupsListRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -5318,60 +5249,6 @@ func NewConversationsLocateUnreadRequest(server string, conversationId int, para
 		if params.Limit != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
-				return nil, err
-			} else {
-				for _, qp := range strings.Split(queryFrag, "&") {
-					rawQueryFragments = append(rawQueryFragments, qp)
-				}
-			}
-
-		}
-
-		if encoded := queryValues.Encode(); encoded != "" {
-			rawQueryFragments = append(rawQueryFragments, encoded)
-		}
-		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
-	}
-
-	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewGroupsListRequest constructs an http.Request for the GroupsList method
-func NewGroupsListRequest(server string, params *GroupsListParams) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v1/groups")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	if params != nil {
-		// queryValues collects non-styled parameters (passthrough, JSON)
-		// that are safe to round-trip through url.Values.Encode().
-		queryValues := queryURL.Query()
-		// rawQueryFragments collects pre-encoded query fragments from
-		// styled parameters, preserving literal commas as delimiters
-		// per the OpenAPI spec (e.g. "color=blue,black,brown").
-		var rawQueryFragments []string
-
-		if params.Counts != nil {
-
-			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "counts", *params.Counts, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {
@@ -7613,13 +7490,6 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /api/v1/conversations/{conversationId}/unread (the `ConversationsLocateUnread` operationId).
 	ConversationsLocateUnreadWithResponse(ctx context.Context, conversationId int, params *ConversationsLocateUnreadParams, reqEditors ...RequestEditorFn) (*ConversationsLocateUnreadResponse, error)
 
-	// GroupsListWithResponse List all groups, highest rank first. `memberCount` is null unless `counts` is true (counting members is the costly part, and most screens only need names). Requires any of admin.groups, admin.permissions, admin.promotions or admin.members (the screens those open need group names); the writes need admin.groups.
-	//
-	// Returns a wrapper object for the known response body format(s).
-	//
-	// Corresponds with GET /api/v1/groups (the `GroupsList` operationId).
-	GroupsListWithResponse(ctx context.Context, params *GroupsListParams, reqEditors ...RequestEditorFn) (*GroupsListResponse, error)
-
 	// AuthMeWithResponse The current user (null for guests), a summary of their permissions, and every global permission resolved for them.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -9196,107 +9066,6 @@ func (r ConversationsLocateUnreadResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ConversationsLocateUnreadResponse) ContentType() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Header.Get("Content-Type")
-	}
-	return ""
-}
-
-type GroupsListResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *struct {
-		Items []Group `json:"items"`
-	}
-	// JSON400 the response for an HTTP 400 `application/json` response
-	JSON400 *Error
-	// JSON401 the response for an HTTP 401 `application/json` response
-	JSON401 *Error
-	// JSON403 the response for an HTTP 403 `application/json` response
-	JSON403 *Error
-	// JSON404 the response for an HTTP 404 `application/json` response
-	JSON404 *Error
-	// JSON409 the response for an HTTP 409 `application/json` response
-	JSON409 *Error
-	// JSON415 the response for an HTTP 415 `application/json` response
-	JSON415 *Error
-	// JSON429 the response for an HTTP 429 `application/json` response
-	JSON429 *Error
-	// JSON500 the response for an HTTP 500 `application/json` response
-	JSON500 *Error
-}
-
-// GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r GroupsListResponse) GetJSON200() *struct {
-	Items []Group `json:"items"`
-} {
-	return r.JSON200
-}
-
-// GetJSON400 returns the response for an HTTP 400 `application/json` response
-func (r GroupsListResponse) GetJSON400() *Error {
-	return r.JSON400
-}
-
-// GetJSON401 returns the response for an HTTP 401 `application/json` response
-func (r GroupsListResponse) GetJSON401() *Error {
-	return r.JSON401
-}
-
-// GetJSON403 returns the response for an HTTP 403 `application/json` response
-func (r GroupsListResponse) GetJSON403() *Error {
-	return r.JSON403
-}
-
-// GetJSON404 returns the response for an HTTP 404 `application/json` response
-func (r GroupsListResponse) GetJSON404() *Error {
-	return r.JSON404
-}
-
-// GetJSON409 returns the response for an HTTP 409 `application/json` response
-func (r GroupsListResponse) GetJSON409() *Error {
-	return r.JSON409
-}
-
-// GetJSON415 returns the response for an HTTP 415 `application/json` response
-func (r GroupsListResponse) GetJSON415() *Error {
-	return r.JSON415
-}
-
-// GetJSON429 returns the response for an HTTP 429 `application/json` response
-func (r GroupsListResponse) GetJSON429() *Error {
-	return r.JSON429
-}
-
-// GetJSON500 returns the response for an HTTP 500 `application/json` response
-func (r GroupsListResponse) GetJSON500() *Error {
-	return r.JSON500
-}
-
-// GetBody returns the raw response body bytes
-func (r GroupsListResponse) GetBody() []byte {
-	return r.Body
-}
-
-// Status returns HTTPResponse.Status
-func (r GroupsListResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r GroupsListResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r GroupsListResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -13728,19 +13497,6 @@ func (c *ClientWithResponses) ConversationsLocateUnreadWithResponse(ctx context.
 	return ParseConversationsLocateUnreadResponse(rsp)
 }
 
-// GroupsListWithResponse List all groups, highest rank first. `memberCount` is null unless `counts` is true (counting members is the costly part, and most screens only need names). Requires any of admin.groups, admin.permissions, admin.promotions or admin.members (the screens those open need group names); the writes need admin.groups.
-//
-// Returns a wrapper object for the known response body format(s).
-//
-// Corresponds with GET /api/v1/groups (the `GroupsList` operationId).
-func (c *ClientWithResponses) GroupsListWithResponse(ctx context.Context, params *GroupsListParams, reqEditors ...RequestEditorFn) (*GroupsListResponse, error) {
-	rsp, err := c.GroupsList(ctx, params, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseGroupsListResponse(rsp)
-}
-
 // AuthMeWithResponse The current user (null for guests), a summary of their permissions, and every global permission resolved for them.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -15371,90 +15127,6 @@ func ParseConversationsLocateUnreadResponse(rsp *http.Response) (*ConversationsL
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest MessageLocation
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON403 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON409 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 415:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON415 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON429 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest Error
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseGroupsListResponse parses an HTTP response from a GroupsListWithResponse call
-func ParseGroupsListResponse(rsp *http.Response) (*GroupsListResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &GroupsListResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest struct {
-			Items []Group `json:"items"`
-		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

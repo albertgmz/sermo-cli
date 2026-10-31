@@ -13,7 +13,6 @@ output-options:
     - auth.counters
     - site.get
     - paletteColors.list
-    - groups.list
     - nodes.list
     - nodes.get
     - nodes.unread

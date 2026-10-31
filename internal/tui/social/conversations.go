@@ -1,0 +1,202 @@
+package social
+
+import (
+	"context"
+
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/albertgmz/sermo-cli/internal/api"
+	"github.com/albertgmz/sermo-cli/internal/api/gen"
+	"github.com/albertgmz/sermo-cli/internal/i18n"
+	"github.com/albertgmz/sermo-cli/internal/tui/ui"
+)
+
+type conversationsMsg struct {
+	page int
+	data *api.Page[gen.ConversationSummary]
+	err  error
+}
+
+type conversationCreatedMsg struct{ id int }
+
+// conversations is the list of the conversations of the viewer, one page
+// at a time.
+type conversations struct {
+	d     *ui.Deps
+	load  loader
+	items []gen.ConversationSummary
+	page  int
+	pages int
+	list  ui.List
+	ed    *editor
+	w, h  int
+}
+
+// NewConversations returns the conversation list of the viewer.
+func NewConversations(d *ui.Deps) ui.Screen {
+	c := &conversations{d: d, load: newLoader(d), page: 1, pages: 1}
+	c.list.SetClock(d.Now)
+	return c
+}
+
+func (c *conversations) Title() string       { return i18n.T("social.conv.title") }
+func (c *conversations) CapturesInput() bool { return c.ed != nil }
+func (c *conversations) Animating() bool {
+	return c.d.Animate() && !c.load.loading && c.ed == nil && c.list.Animating(c.d.Now())
+}
+
+func (c *conversations) Keys() []key.Binding {
+	if c.ed != nil {
+		return editorKeys()
+	}
+	return append(ui.ListKeys(),
+		binding("h l", "social.key.pages", "h", "l"),
+		binding("C", "social.key.newConversation", "c"),
+		binding("R", "social.key.retry", "r"),
+	)
+}
+
+func (c *conversations) Init() tea.Cmd {
+	if c.d.Me == nil {
+		return login
+	}
+	return c.fetch(c.page)
+}
+
+func (c *conversations) fetch(page int) tea.Cmd {
+	client := c.d.API
+	return tea.Batch(c.load.begin(), func() tea.Msg {
+		data, err := client.Conversations(bg, api.PageOpts{Page: page, Limit: pageSize})
+		return conversationsMsg{page: page, data: data, err: err}
+	})
+}
+
+func (c *conversations) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
+	if cmd, ok := routeEditor(&c.ed, msg); ok {
+		return c, cmd
+	}
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		c.w, c.h = msg.Width, msg.Height
+		c.list.SetHeight(max(c.h-4, 1))
+		if c.ed != nil {
+			c.ed.setSize(c.w, c.h)
+		}
+	case spinner.TickMsg:
+		return c, c.load.spin(msg)
+	case conversationsMsg:
+		return c, c.loaded(msg)
+	case conversationCreatedMsg:
+		c.ed = nil
+		open := func() tea.Msg { return ui.OpenConversationMsg{ID: msg.id} }
+		return c, tea.Batch(c.fetch(1), open)
+	case tea.KeyPressMsg:
+		return c, c.key(msg)
+	case tea.MouseWheelMsg:
+		c.list.Update(msg)
+	}
+	return c, nil
+}
+
+func (c *conversations) loaded(msg conversationsMsg) tea.Cmd {
+	if cmd := c.load.done(msg.err); msg.err != nil {
+		return cmd
+	}
+	c.page, c.items = msg.page, msg.data.Items
+	c.pages = pageCount(msg.data.Total, msg.page)
+	c.list.Reset()
+	c.list.SetHeight(max(c.h-4, 1))
+	c.list.SetLen(len(c.items))
+	return nil
+}
+
+// pageCount returns the number of pages for total items, or page when
+// the total is not known.
+func pageCount(total *int, page int) int {
+	if total == nil {
+		return page
+	}
+	return max((*total+pageSize-1)/pageSize, 1)
+}
+
+func (c *conversations) key(msg tea.KeyPressMsg) tea.Cmd {
+	if cmd, stop := c.load.blocked(msg, func() tea.Cmd { return c.fetch(c.page) }); stop {
+		return cmd
+	}
+	switch msg.String() {
+	case "c":
+		return c.compose()
+	case "h", "left":
+		if c.page > 1 {
+			return c.fetch(c.page - 1)
+		}
+		return nil
+	case "l", "right":
+		if c.page < c.pages {
+			return c.fetch(c.page + 1)
+		}
+		return nil
+	}
+	if c.list.Update(msg) {
+		return ui.Push(NewConversation(c.d, c.items[c.list.Cursor()].Id))
+	}
+	return nil
+}
+
+func (c *conversations) compose() tea.Cmd {
+	client := c.d.API
+	c.ed = newConversationEditor(c.d, func(ctx context.Context, v draft) (tea.Msg, error) {
+		out, err := client.CreateConversation(ctx, v.Title, v.Body, v.To)
+		if err != nil {
+			return nil, err
+		}
+		return conversationCreatedMsg{id: out.Conversation.Id}, nil
+	})
+	c.ed.setSize(c.w, c.h)
+	return nil
+}
+
+func (c *conversations) View(width, height int) string {
+	if c.ed != nil {
+		return c.ed.view()
+	}
+	if v, ok := c.load.view(width, height); ok {
+		return v
+	}
+	s := c.d.Styles
+	head := ui.Header(s, c.d.Theme, c.Title(), width)
+	if len(c.items) == 0 {
+		return head + "\n" + ui.Empty(s, i18n.T("social.conv.empty"), width, height-1)
+	}
+	rows := c.list.View(s, c.d.Theme, width, c.d.Phase(), func(i, _ int) string { return c.row(c.items[i]) })
+	foot := s.Muted.Render(i18n.Tf("social.page", map[string]any{"Page": c.page, "Pages": c.pages}))
+	return head + "\n\n" + rows + "\n\n" + foot
+}
+
+func (c *conversations) row(v gen.ConversationSummary) string {
+	s := c.d.Styles
+	mark := "  "
+	title := s.Text.Render(v.Title)
+	if v.IsUnread {
+		mark = s.Accent.Render("●") + " "
+		title = s.Subtitle.Render(v.Title)
+	}
+	who := i18n.Plural("social.conv.participants", v.ParticipantCount, map[string]any{"Starter": v.Starter.Username})
+	last := i18n.Tf("social.conv.last", map[string]any{
+		"Name": api.AuthorName(v.LastMessage.User), "When": relTime(c.d, v.LastMessage.SentAt),
+	})
+	return mark + title + s.Muted.Render("  ·  "+who+"  ·  "+last)
+}
+
+// editorKeys are the keys of an open editor for the help screen.
+func editorKeys() []key.Binding {
+	return []key.Binding{
+		binding("Ctrl+S", "social.key.send", "ctrl+s"),
+		binding("Ctrl+P", "social.key.preview", "ctrl+p"),
+		binding("Ctrl+B I U K", "social.key.format", "ctrl+b", "ctrl+i", "ctrl+u", "ctrl+k"),
+		binding("Tab", "social.key.nextField", "tab"),
+		binding("Esc", "social.key.cancel", "esc"),
+	}
+}

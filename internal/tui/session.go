@@ -9,6 +9,7 @@ import (
 	"github.com/albertgmz/sermo-cli/internal/auth"
 	"github.com/albertgmz/sermo-cli/internal/buildinfo"
 	"github.com/albertgmz/sermo-cli/internal/i18n"
+	"github.com/albertgmz/sermo-cli/internal/tui/forum"
 	"github.com/albertgmz/sermo-cli/internal/tui/ui"
 )
 
@@ -49,6 +50,8 @@ func (m *model) updateSession(msg tea.Msg) (tea.Cmd, bool) {
 			return nil, true
 		}
 		return tea.Batch(m.loadCounters(true), m.nextPoll()), true
+	case ui.CountersChangedMsg:
+		return m.reloadCounters(), true
 	case ui.UnauthorizedMsg:
 		return m.unauthorized(), true
 	case loggedInMsg:
@@ -82,6 +85,15 @@ func (m *model) loadCounters(poll bool) tea.Cmd {
 		n, err := c.Counters(ctx)
 		return countersMsg{c: n, err: err, poll: poll}
 	}
+}
+
+// reloadCounters loads the counters as a new baseline. The change shows no
+// toast.
+func (m *model) reloadCounters() tea.Cmd {
+	if m.d.Cred.Token == "" {
+		return nil
+	}
+	return m.loadCounters(false)
 }
 
 func (m *model) nextPoll() tea.Cmd {
@@ -148,13 +160,20 @@ func (m *model) unauthorized() tea.Cmd {
 }
 
 func (m *model) loggedIn(msg loggedInMsg) tea.Cmd {
+	err := m.signIn(auth.Credential{Token: msg.token, Source: auth.SourceDevice})
+	var resumed tea.Cmd
 	if _, ok := m.top().(*login); ok {
-		m.pop()
+		resumed = m.pop()
 	}
-	if err := m.signIn(auth.Credential{Token: msg.token, Source: auth.SourceDevice}); err != nil {
-		return ui.ErrorCmd(err)
+	if err != nil {
+		return tea.Batch(resumed, ui.ErrorCmd(err))
 	}
-	cmds := []tea.Cmd{m.loadMe(msg.saveErr == nil), m.loadCounters(false), m.nextPoll()}
+	cmds := []tea.Cmd{resumed, m.loadMe(msg.saveErr == nil), m.loadCounters(false), m.nextPoll()}
+	if len(m.stack) == 1 {
+		// Home loaded as a guest. Load it again for the unread markers.
+		m.stack = m.stack[:0]
+		cmds = append(cmds, m.push(forum.NewNodes(m.d)))
+	}
 	if msg.saveErr != nil {
 		cmds = append(cmds, ui.Toast(i18n.T("core.toast.tokenSaveFailed"), ui.ToastError))
 	}

@@ -68,11 +68,5 @@
   "core.lang.en": "English",
   "core.help.title": "Help",
   "core.help.global": "General keys",
-  "core.help.screen": "This screen",
-  "core.stub.text": "This screen is not available yet.",
-  "core.stub.node": "Forum {{.ID}}",
-  "core.stub.thread": "Thread {{.ID}}",
-  "core.stub.conversation": "Conversation {{.ID}}",
-  "core.stub.profile": "Profile {{.ID}}",
-  "core.stub.composer": "Write"
+  "core.help.screen": "This screen"
 }

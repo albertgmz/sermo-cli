@@ -23,12 +23,22 @@ var literal = map[string]bool{"CODE": true, "ICODE": true, "PLAIN": true}
 // QUOTE tags in body without a partner become plain text, so the quote
 // cannot end too early or take the closing tag of a quote around it.
 func Quote(author string, postID, memberID int, body string) string {
+	return quote(author, "post", postID, memberID, body)
+}
+
+// QuoteMessage returns the BB code that quotes a conversation message. The
+// format is the format of Quote, with "convMessage" in place of "post".
+func QuoteMessage(author string, messageID, memberID int, body string) string {
+	return quote(author, "convMessage", messageID, memberID, body)
+}
+
+func quote(author, kind string, id, memberID int, body string) string {
 	var b strings.Builder
 	b.WriteString(`[QUOTE="`)
 	if name := strings.TrimSpace(nameRE.ReplaceAllString(author, " ")); name != "" {
 		b.WriteString(name + ", ")
 	}
-	fmt.Fprintf(&b, "post: %d", postID)
+	fmt.Fprintf(&b, "%s: %d", kind, id)
 	if memberID > 0 {
 		fmt.Fprintf(&b, ", member: %d", memberID)
 	}

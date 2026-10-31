@@ -45,7 +45,7 @@ func TestSplashKeyGoesHomeAndQQuits(t *testing.T) {
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(100, 30))
 	waitText(t, tm, "Bienvenido")
 	tm.Send(tea.KeyPressMsg{Code: 'x', Text: "x"})
-	waitText(t, tm, "Esta pantalla llega pronto")
+	waitText(t, tm, i18n.T("forum.nodes.empty"))
 	tm.Send(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
@@ -422,5 +422,36 @@ func TestSettingsChangeLanguage(t *testing.T) {
 	}
 	if c, _ := config.Load(); c.Locale != "en" {
 		t.Fatalf("saved locale %q", c.Locale)
+	}
+}
+
+func TestLocaleOptionIsNotSaved(t *testing.T) {
+	f := newFakeSermo(t)
+	d := testDeps(t, f, "")
+	t.Cleanup(func() { i18n.SetLocale("es") })
+	m := newModel(context.Background(), d, Options{Start: StartHome, Sleep: noSleep, Locale: "en"})
+	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	if i18n.Locale() != "en" {
+		t.Fatalf("locale = %q", i18n.Locale())
+	}
+	m.push(newSettings(d))
+	pressKey(m, "right")
+	c, err := config.Load()
+	if err != nil || c.Theme != "ambar-crt" {
+		t.Fatalf("config theme = %q, %v", c.Theme, err)
+	}
+	if c.Locale != "" {
+		t.Fatalf("the locale option was saved: %q", c.Locale)
+	}
+}
+
+func TestLoginReloadsHomeForTheMember(t *testing.T) {
+	f := newFakeSermo(t)
+	d := testDeps(t, f, "")
+	m := newTestModel(t, d, StartHome)
+	pressKey(m, "m")
+	drive(m, pressKey(m, "enter"), 2*time.Second)
+	if f.unreadCalls.Load() == 0 {
+		t.Fatal("home did not load the unread forums for the member")
 	}
 }

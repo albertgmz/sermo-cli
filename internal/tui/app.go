@@ -15,6 +15,9 @@ import (
 // toastTime is how long a toast shows.
 const toastTime = 4 * time.Second
 
+// toastMargin is the number of cells between a toast and the right edge.
+const toastMargin = 3
+
 // model is the root Bubble Tea model. It owns the screen stack, the chrome
 // and the session state.
 type model struct {
@@ -34,6 +37,7 @@ type model struct {
 
 	toast       *ui.ToastMsg
 	toastID     int
+	slide       toastSlide
 	confirmQuit bool
 	ticking     bool
 }
@@ -41,27 +45,35 @@ type model struct {
 type hideToastMsg struct{ id int }
 
 func (m *model) Init() tea.Cmd {
-	cmds := []tea.Cmd{tea.RequestBackgroundColor, m.loadSite(), m.stack[0].Init(), m.nextClock()}
+	cmds := []tea.Cmd{tea.RequestBackgroundColor, m.loadSite(), wrap(m.stack[0], m.stack[0].Init()), m.nextClock()}
 	if m.d.Cred.Token != "" {
 		cmds = append(cmds, m.loadMe(false), m.loadCounters(false), m.nextPoll())
 	}
 	return tea.Batch(append(cmds, m.ensureTick())...)
 }
 
-// Update runs the handlers in order. The first handler that knows the
-// message handles it. Other messages go to the top screen.
+// Update gives the result of a screen Cmd to that screen. It gives other
+// messages to the app handlers, and then to the top screen.
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-	handled := false
-	for _, h := range []func(tea.Msg) (tea.Cmd, bool){m.updateFrame, m.updateNav, m.updateSession, m.updateIntent} {
-		if cmd, handled = h(msg); handled {
-			break
-		}
+	if o, ok := msg.(ownedMsg); ok {
+		return m, tea.Batch(m.owned(o), m.ensureTick())
 	}
+	cmd, handled := m.handle(msg)
 	if !handled {
 		cmd = m.forward(msg)
 	}
 	return m, tea.Batch(cmd, m.ensureTick())
+}
+
+// handle runs the app handlers in order. The first handler that knows the
+// message handles it. It returns false when no handler knows the message.
+func (m *model) handle(msg tea.Msg) (tea.Cmd, bool) {
+	for _, h := range []func(tea.Msg) (tea.Cmd, bool){m.updateFrame, m.updateNav, m.updateSession, m.updateIntent} {
+		if cmd, handled := h(msg); handled {
+			return cmd, true
+		}
+	}
+	return nil, false
 }
 
 // updateFrame handles the window, the keys, the clock and the toasts.
@@ -78,17 +90,20 @@ func (m *model) updateFrame(msg tea.Msg) (tea.Cmd, bool) {
 	case ui.AnimTickMsg:
 		m.ticking = false
 		m.d.AnimT = msg.Time.Sub(m.start).Seconds()
+		m.slide.step()
 		return m.forward(msg), true
 	case clockMsg:
 		return m.nextClock(), true
 	case ui.ToastMsg:
 		m.toastID++
 		m.toast = &msg
+		m.startToastSlide()
 		id := m.toastID
 		return tea.Tick(toastTime, func(time.Time) tea.Msg { return hideToastMsg{id} }), true
 	case hideToastMsg:
 		if msg.id == m.toastID {
 			m.toast = nil
+			m.slide.stop()
 		}
 		return nil, true
 	}
@@ -127,7 +142,7 @@ func (m *model) top() ui.Screen { return m.stack[len(m.stack)-1] }
 func (m *model) forward(msg tea.Msg) tea.Cmd {
 	s, cmd := m.top().Update(msg)
 	m.stack[len(m.stack)-1] = s
-	return cmd
+	return wrap(s, cmd)
 }
 
 // ensureTick starts the animation clock when a view animates and no tick
@@ -143,6 +158,9 @@ func (m *model) ensureTick() tea.Cmd {
 func (m *model) animating() bool {
 	if !m.d.Animate() {
 		return false
+	}
+	if m.slide.moving() {
+		return true
 	}
 	if m.splash != nil {
 		return m.splash.Animating()
@@ -160,7 +178,8 @@ func (m *model) resizeAll() tea.Cmd {
 	cw, ch := m.contentSize()
 	cmds := make([]tea.Cmd, len(m.stack))
 	for i, s := range m.stack {
-		m.stack[i], cmds[i] = s.Update(tea.WindowSizeMsg{Width: cw, Height: ch})
+		next, cmd := s.Update(tea.WindowSizeMsg{Width: cw, Height: ch})
+		m.stack[i], cmds[i] = next, wrap(next, cmd)
 	}
 	return tea.Batch(cmds...)
 }
@@ -194,7 +213,8 @@ func (m *model) render() string {
 	if m.toast != nil {
 		box := toastBox(m.d.Styles, m.d.Theme, *m.toast, m.w/2)
 		bw, bh := ansi.StringWidth(strings.Split(box, "\n")[0]), strings.Count(box, "\n")+1
-		screen = overlay(screen, box, m.w-bw-3, m.h-2-bh)
+		x := m.w - bw - toastMargin + m.toastOffset(bw)
+		screen = overlay(screen, clipRight(box, m.w-x), x, m.h-2-bh)
 	}
 	return screen
 }

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -45,6 +46,10 @@ func New(o Options) (*Client, error) {
 	if server == "" {
 		return nil, errors.New("api: server URL is empty")
 	}
+	origin, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
 	hc := &http.Client{Timeout: defaultTimeout}
 	if o.HTTP != nil {
 		copied := *o.HTTP
@@ -58,7 +63,7 @@ func New(o Options) (*Client, error) {
 	if sleep == nil {
 		sleep = sleepCtx
 	}
-	hc.Transport = &transport{base: base, token: o.Token, userAgent: o.UserAgent, sleep: sleep}
+	hc.Transport = &transport{base: base, origin: origin, token: o.Token, userAgent: o.UserAgent, sleep: sleep}
 	g, err := gen.NewClientWithResponses(server, gen.WithHTTPClient(hc))
 	if err != nil {
 		return nil, err

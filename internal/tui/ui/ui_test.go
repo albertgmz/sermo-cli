@@ -277,3 +277,47 @@ func (*fakeScreen) View(int, int) string               { return "" }
 func (*fakeScreen) Title() string                      { return "" }
 func (*fakeScreen) Keys() []key.Binding                { return nil }
 func (*fakeScreen) CapturesInput() bool                { return false }
+
+func TestListAnimatesShortlyAfterMoves(t *testing.T) {
+	now := time.Date(2026, 10, 31, 14, 5, 0, 0, time.UTC)
+	var l List
+	l.SetClock(func() time.Time { return now })
+	l.SetHeight(5)
+	if l.Animating(now) {
+		t.Fatal("an empty list must not animate")
+	}
+	l.SetLen(10)
+	if !l.Animating(now.Add(1999 * time.Millisecond)) {
+		t.Fatal("a list must animate after it first gets items")
+	}
+	if l.Animating(now.Add(2 * time.Second)) {
+		t.Fatal("an idle list must stop after 2 s")
+	}
+	now = now.Add(time.Minute)
+	l.SetLen(12)
+	l.Update(press("up"))
+	if l.Animating(now) {
+		t.Fatal("more items or a key that does not move the cursor must not animate")
+	}
+	l.Update(press("down"))
+	if !l.Animating(now.Add(time.Second)) {
+		t.Fatal("a cursor move must animate")
+	}
+	now = now.Add(time.Minute)
+	l.Reset()
+	l.SetLen(3)
+	if !l.Animating(now) || l.Len() != 3 || l.Cursor() != 0 {
+		t.Fatal("Reset must empty the list and keep the clock")
+	}
+}
+
+func TestListZeroValueUsesSystemClock(t *testing.T) {
+	var l List
+	l.SetLen(3)
+	if !l.Animating(time.Now()) {
+		t.Fatal("a new list with items must animate")
+	}
+	if l.Animating(time.Now().Add(3 * time.Second)) {
+		t.Fatal("the list must stop after 2 s")
+	}
+}

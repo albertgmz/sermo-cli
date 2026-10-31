@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ const maxRetryWait = 10 * time.Second
 // transport adds the Sermo headers and retries one short 429.
 type transport struct {
 	base      http.RoundTripper
+	origin    *url.URL
 	token     string
 	userAgent string
 	sleep     func(context.Context, time.Duration) error
@@ -46,7 +48,7 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 // prepare returns a copy of req with the Sermo headers. A RoundTripper must not change req.
 func (t *transport) prepare(req *http.Request) *http.Request {
 	out := req.Clone(req.Context())
-	if t.token != "" {
+	if t.token != "" && sameOrigin(out.URL, t.origin) {
 		out.Header.Set("Authorization", "Bearer "+t.token)
 	}
 	if t.userAgent != "" {
@@ -54,6 +56,12 @@ func (t *transport) prepare(req *http.Request) *http.Request {
 	}
 	out.Header.Set("Accept", "application/json")
 	return out
+}
+
+// sameOrigin reports whether u has the scheme and host of origin.
+// The transport sends the token only to the configured server, also after a redirect.
+func sameOrigin(u, origin *url.URL) bool {
+	return strings.EqualFold(u.Scheme, origin.Scheme) && strings.EqualFold(u.Host, origin.Host)
 }
 
 // rewind returns a copy of req with a new body. It returns false when the body cannot be read again.
