@@ -25,6 +25,7 @@ type nodes struct {
 	trees   []string
 	unread  map[int]bool
 	list    ui.List
+	bbs     bbsIndex
 }
 
 type nodesMsg struct {
@@ -50,6 +51,9 @@ func NewNodes(d *ui.Deps) ui.Screen {
 
 func (s *nodes) Init() tea.Cmd {
 	cmd := s.load()
+	if s.d.BBS() {
+		cmd = tea.Batch(cmd, s.loadExtras())
+	}
 	if s.d.Animate() {
 		return tea.Batch(cmd, s.sp.Tick)
 	}
@@ -92,6 +96,9 @@ func (s *nodes) load() tea.Cmd {
 }
 
 func (s *nodes) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
+	if cmd, ok := s.bbsUpdate(msg); ok {
+		return s, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		s.list.SetHeight(msg.Height - 2)
@@ -107,10 +114,8 @@ func (s *nodes) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 		return s, msg.cmd()
 	case spinner.TickMsg:
 		return s, spin(s.d, &s.sp, s.loading, msg)
-	case tea.KeyPressMsg:
-		return s, s.key(msg)
-	case tea.MouseWheelMsg:
-		return s, s.move(msg)
+	case tea.KeyPressMsg, tea.MouseWheelMsg:
+		return s, s.input(msg)
 	}
 	return s, nil
 }
@@ -245,6 +250,8 @@ func (s *nodes) View(width, height int) string {
 		return errorView(s.d, s.err, width, height)
 	case len(s.items) == 0:
 		return ui.Empty(s.d.Styles, i18n.T("forum.nodes.empty"), width, height)
+	case s.d.BBS():
+		return s.bbsView(width, height)
 	}
 	st, t := s.d.Styles, s.d.Theme
 	return ui.Header(st, t, s.Title(), width) + "\n\n" + s.list.View(st, t, width, s.d.Phase(), s.row)

@@ -53,8 +53,15 @@ type conversation struct {
 	// pendingJump is the message to show after the next load.
 	pendingJump int
 	ed          *editor
+	led         *lineEditor
 	picker      linkPicker
-	w, h        int
+	// off is the first shown line of the BBS view.
+	off      int
+	bbsLines []string
+	// jumpAt is one more than the index of the message to show after the
+	// next load, or 0.
+	jumpAt int
+	w, h   int
 }
 
 // NewConversation returns the conversation id.
@@ -69,7 +76,7 @@ func (c *conversation) Title() string {
 	return i18n.T("social.conv.one")
 }
 
-func (c *conversation) CapturesInput() bool { return c.ed != nil }
+func (c *conversation) CapturesInput() bool { return c.ed != nil || c.led != nil }
 
 func (c *conversation) Keys() []key.Binding {
 	if c.ed != nil {
@@ -124,7 +131,7 @@ func fetchMessages(client *api.Client, id int, locate bool, out *messagesMsg) er
 }
 
 func (c *conversation) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
-	if cmd, ok := routeEditor(&c.ed, msg); ok {
+	if cmd, ok := c.routeEditors(msg); ok {
 		return c, cmd
 	}
 	switch msg := msg.(type) {
@@ -151,7 +158,7 @@ func (c *conversation) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 
 // replied loads the last page and shows the new message id.
 func (c *conversation) replied(id int) tea.Cmd {
-	c.ed = nil
+	c.ed, c.led = nil, nil
 	c.total++
 	return tea.Batch(ui.Toast(i18n.T("social.sent"), ui.ToastSuccess), c.fetchAt(pageCount(&c.total, 1), id))
 }
@@ -170,7 +177,10 @@ func (c *conversation) resize(w, h int) {
 	if c.ed != nil {
 		c.ed.setSize(w, h)
 	}
-	if c.msgs != nil && c.width != ui.ReadingWidth(w) {
+	if c.led != nil {
+		c.led.setSize(w, h)
+	}
+	if c.msgs != nil && c.width != c.textWidth() {
 		c.build()
 	}
 }
@@ -190,6 +200,10 @@ func (c *conversation) loaded(msg messagesMsg) tea.Cmd {
 		jump, c.pendingJump = c.pendingJump, 0
 	}
 	c.show(c.indexOf(jump))
+	if c.jumpAt > 0 {
+		c.show(c.jumpAt - 1)
+		c.jumpAt = 0
+	}
 	warm := c.warmNextPage()
 	if c.read {
 		return warm
@@ -223,6 +237,10 @@ func (c *conversation) indexOf(messageID int) int {
 
 // build renders the messages at the reading width.
 func (c *conversation) build() {
+	if c.d.BBS() {
+		c.buildBBS()
+		return
+	}
 	c.width = ui.ReadingWidth(c.w)
 	c.texts, c.links, c.starts = nil, nil, nil
 	var lines []string
@@ -279,6 +297,7 @@ func (c *conversation) show(i int) {
 	}
 	c.cur = max(0, min(i, len(c.starts)-1))
 	c.vp.SetYOffset(c.starts[c.cur])
+	c.off = c.starts[c.cur]
 }
 
 // follow selects the last message that starts above the top of the view.
@@ -299,6 +318,10 @@ func (c *conversation) key(msg tea.KeyPressMsg) tea.Cmd {
 		return c.fetch(c.page, c.conv == nil)
 	}); stop {
 		return cmd
+	}
+	if c.d.BBS() {
+		c.bbsScroll(msg.String())
+		return nil
 	}
 	if cmd, ok := c.action(msg.String()); ok {
 		return cmd
@@ -359,8 +382,11 @@ func (c *conversation) author() tea.Cmd {
 	return func() tea.Msg { return ui.OpenProfileMsg{UserID: id} }
 }
 
-func (c *conversation) quote() tea.Cmd {
-	client, id := c.d.API, c.msgs[c.cur].Id
+func (c *conversation) quote() tea.Cmd { return c.quoteAt(c.cur) }
+
+// quoteAt gets the quote of the message i of the page.
+func (c *conversation) quoteAt(i int) tea.Cmd {
+	client, id := c.d.API, c.msgs[i].Id
 	return func() tea.Msg {
 		q, err := client.QuoteMessage(bg, id)
 		return quoteMsg{quote: q, err: err}
@@ -372,10 +398,16 @@ func (c *conversation) quoted(msg quoteMsg) tea.Cmd {
 		return ui.ErrorCmd(msg.err)
 	}
 	q := msg.quote
+	if c.led != nil {
+		return c.led.addText(bbcode.QuoteMessage(api.AuthorName(q.Author), q.MessageId, api.AuthorID(q.Author), q.BodySource))
+	}
 	return c.reply(bbcode.QuoteMessage(api.AuthorName(q.Author), q.MessageId, api.AuthorID(q.Author), q.BodySource) + "\n")
 }
 
 func (c *conversation) reply(text string) tea.Cmd {
+	if c.d.BBS() {
+		return c.replyBBS(text)
+	}
 	client, id := c.d.API, c.id
 	heading := i18n.Tf("social.editor.reply", map[string]any{"Title": c.Title()})
 	c.ed = newEditor(c.d, heading, api.MessageTarget(id), text, func(ctx context.Context, v draft) (tea.Msg, error) {
@@ -392,6 +424,12 @@ func (c *conversation) reply(text string) tea.Cmd {
 func (c *conversation) View(width, height int) string {
 	if c.ed != nil {
 		return c.ed.view()
+	}
+	if c.led != nil {
+		return c.led.view()
+	}
+	if c.d.BBS() {
+		return c.bbsView(width, height)
 	}
 	if v, ok := c.load.view(width, height); ok {
 		return v

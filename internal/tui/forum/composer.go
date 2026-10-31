@@ -71,11 +71,16 @@ type composer struct {
 	issues     []api.Issue
 	confirm    bool
 	w, h       int
+
+	// ed is the line editor of the BBS interface, or nil.
+	ed        *lineEditor
+	nodeTitle string
 }
 
 type composeMetaMsg struct {
 	prefixes []gen.ThreadPrefix
 	require  bool
+	node     string
 }
 
 type previewMsg struct {
@@ -135,6 +140,10 @@ func newComposer(d *ui.Deps, mode composeMode, body string) *composer {
 	ta.SetValue(body)
 	setStyles(d, &ti, &ta)
 	c := &composer{d: d, mode: mode, title: ti, body: ta, initial: body, prefix: -1, pv: viewport.New()}
+	if d.BBS() {
+		c.ed = newLineEditor(body)
+		c.initial = c.text()
+	}
 	c.focus(fieldBody)
 	return c
 }
@@ -164,7 +173,10 @@ func (c *composer) Init() tea.Cmd {
 	return func() tea.Msg {
 		prefixes, _ := api.ThreadPrefixes(bg(), id)
 		v, err := api.Node(bg(), id)
-		return composeMetaMsg{prefixes: prefixes, require: err == nil && v.Node.Settings.RequirePrefix}
+		if err != nil {
+			return composeMetaMsg{prefixes: prefixes}
+		}
+		return composeMetaMsg{prefixes: prefixes, require: v.Node.Settings.RequirePrefix, node: v.Node.Title}
 	}
 }
 
@@ -193,7 +205,7 @@ func (c *composer) Keys() []key.Binding {
 
 // changed reports whether the text differs from the start text.
 func (c *composer) changed() bool {
-	return c.body.Value() != c.initial || c.title.Value() != ""
+	return c.text() != c.initial || c.title.Value() != "" || c.ed.pending()
 }
 
 func (c *composer) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
@@ -201,7 +213,7 @@ func (c *composer) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		c.resize(msg.Width, msg.Height)
 	case composeMetaMsg:
-		c.prefixes, c.requirePrefix = msg.prefixes, msg.require
+		c.prefixes, c.requirePrefix, c.nodeTitle = msg.prefixes, msg.require, msg.node
 	case previewMsg:
 		return c, c.previewed(msg)
 	case sentMsg:
@@ -209,6 +221,9 @@ func (c *composer) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 	case tea.KeyPressMsg:
 		return c, c.key(msg)
 	default:
+		if c.ed != nil {
+			return c, c.edMsg(msg)
+		}
 		return c, c.forward(msg)
 	}
 	return c, nil
@@ -234,6 +249,9 @@ func (c *composer) chromeLines() int {
 }
 
 func (c *composer) key(k tea.KeyPressMsg) tea.Cmd {
+	if c.ed != nil {
+		return c.edKey(k)
+	}
 	s := k.String()
 	if c.confirm {
 		c.confirm = false
@@ -386,19 +404,22 @@ func (c *composer) togglePreview() tea.Cmd {
 		c.preview = false
 		return nil
 	}
-	body := c.body.Value()
+	body := c.text()
 	if strings.TrimSpace(body) == "" {
 		c.errText = i18n.T("forum.compose.bodyRequired")
 		return nil
 	}
 	c.previewing = true
-	d, target, w := c.d, c.target(), ui.ReadingWidth(c.w)
+	d, target, w, bbs := c.d, c.target(), ui.ReadingWidth(c.w), c.ed != nil
+	if bbs {
+		w = max(c.w-bodyIndent, 10)
+	}
 	return func() tea.Msg {
 		html, err := d.API.Preview(bg(), body, target)
 		if err != nil {
 			return previewMsg{err: err}
 		}
-		text, _, err := d.Render.Post(html, nil, w, d.Glamour)
+		text, err := previewText(d, html, w, bbs)
 		return previewMsg{text: text, err: err}
 	}
 }
@@ -422,7 +443,7 @@ func (c *composer) validate() string {
 		return i18n.T("forum.compose.titleRequired")
 	case c.mode == modeThread && c.requirePrefix && c.prefix < 0:
 		return i18n.T("forum.compose.prefixRequired")
-	case strings.TrimSpace(c.body.Value()) == "":
+	case strings.TrimSpace(c.text()) == "":
 		return i18n.T("forum.compose.bodyRequired")
 	}
 	return ""
@@ -441,7 +462,7 @@ func (c *composer) send() tea.Cmd {
 }
 
 func (c *composer) sendCmd() tea.Cmd {
-	a, body := c.d.API, c.body.Value()
+	a, body := c.d.API, c.text()
 	switch c.mode {
 	case modeThread:
 		req := gen.ThreadsCreateJSONRequestBody{Title: strings.TrimSpace(c.title.Value()), Body: body}
@@ -507,6 +528,9 @@ func (c *composer) View(width, height int) string {
 	st, t := c.d.Styles, c.d.Theme
 	if c.mode == modeUnsupported {
 		return ui.Empty(st, i18n.T("forum.compose.unsupported"), width, height)
+	}
+	if c.ed != nil {
+		return c.edView(width, height)
 	}
 	lines := []string{ui.Header(st, t, c.Title(), width)}
 	if c.preview {

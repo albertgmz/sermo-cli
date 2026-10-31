@@ -12,8 +12,10 @@ import (
 
 type bookmarksMsg struct {
 	page int
-	data *api.Page[gen.Bookmark]
-	err  error
+	// limit is the page size of the request.
+	limit int
+	data  *api.Page[gen.Bookmark]
+	err   error
 }
 
 // bookmarksTab lists the bookmarks of the viewer, one page at a time.
@@ -23,7 +25,10 @@ type bookmarksTab struct {
 	items []gen.Bookmark
 	page  int
 	pages int
+	// shown is the page size of the shown page, or 0.
+	shown int
 	list  ui.List
+	pg    pager
 }
 
 func newBookmarksTab(d *ui.Deps) *bookmarksTab {
@@ -34,10 +39,10 @@ func (t *bookmarksTab) name() string   { return i18n.T("social.profile.bookmarks
 func (t *bookmarksTab) start() tea.Cmd { return t.fetch(1) }
 
 func (t *bookmarksTab) fetch(page int) tea.Cmd {
-	client := t.d.API
+	client, limit := t.d.API, t.limit()
 	return tea.Batch(t.load.begin(), func() tea.Msg {
-		data, err := client.Bookmarks(bg, api.PageOpts{Page: page, Limit: pageSize})
-		return bookmarksMsg{page: page, data: data, err: err}
+		data, err := client.Bookmarks(bg, api.PageOpts{Page: page, Limit: limit})
+		return bookmarksMsg{page: page, limit: limit, data: data, err: err}
 	})
 }
 
@@ -49,10 +54,11 @@ func (t *bookmarksTab) update(msg tea.Msg) tea.Cmd {
 		if cmd := t.load.done(msg.err); msg.err != nil {
 			return cmd
 		}
-		t.page, t.items = msg.page, msg.data.Items
-		t.pages = pageCount(msg.data.Total, msg.page)
-		t.list = ui.List{}
+		t.page, t.items, t.shown = msg.page, msg.data.Items, msg.limit
+		t.pages = pageCountOf(msg.data.Total, msg.page, msg.limit)
+		t.list, t.pg.sel = ui.List{}, 0
 		t.list.SetLen(len(t.items))
+		return t.refit()
 	case tea.MouseWheelMsg:
 		t.list.Update(msg)
 	}
@@ -139,6 +145,7 @@ type watchedTab struct {
 	next  *string
 	more  bool
 	list  ui.List
+	pg    pager
 }
 
 func newWatchedTab(d *ui.Deps) *watchedTab {
@@ -149,7 +156,7 @@ func (t *watchedTab) name() string   { return i18n.T("social.profile.watched") }
 func (t *watchedTab) start() tea.Cmd { return t.fetch("") }
 
 func (t *watchedTab) fetch(cursor string) tea.Cmd {
-	client := t.d.API
+	client, limit := t.d.API, t.limit()
 	var spin tea.Cmd
 	if cursor == "" {
 		spin = t.load.begin()
@@ -157,7 +164,7 @@ func (t *watchedTab) fetch(cursor string) tea.Cmd {
 		t.more = true
 	}
 	return tea.Batch(spin, func() tea.Msg {
-		page, err := client.WatchedThreads(bg, cursor, pageSize)
+		page, err := client.WatchedThreads(bg, cursor, limit)
 		return watchedMsg{page: page, more: cursor != "", err: err}
 	})
 }
@@ -185,7 +192,7 @@ func (t *watchedTab) loaded(msg watchedMsg) tea.Cmd {
 		return cmd
 	}
 	if !msg.more {
-		t.items, t.list = nil, ui.List{}
+		t.items, t.list, t.pg = nil, ui.List{}, pager{per: t.pg.per}
 	}
 	t.items = append(t.items, msg.page.Items...)
 	t.next = msg.page.NextCursor

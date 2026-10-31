@@ -65,7 +65,7 @@ func (pr *profile) Title() string {
 	return i18n.T("core.hotkey.profile")
 }
 
-func (pr *profile) CapturesInput() bool { return pr.posts.ed != nil }
+func (pr *profile) CapturesInput() bool { return pr.posts.editing() }
 
 func (pr *profile) Keys() []key.Binding {
 	if pr.posts.ed != nil {
@@ -103,14 +103,14 @@ func (pr *profile) open(i int) tea.Cmd {
 }
 
 func (pr *profile) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
-	if pr.posts.ed != nil && forEditor(msg) {
+	if pr.posts.editing() && forEditor(msg) {
 		return pr, pr.posts.update(msg)
 	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		pr.w, pr.h = msg.Width, msg.Height
 		pr.posts.resize(msg.Width, msg.Height)
-		return pr, nil
+		return pr, pr.setRows(msg.Height)
 	case profileMsg:
 		pr.p = msg.p
 		pr.posts.canPost = msg.p != nil && msg.p.CanPostOnWall
@@ -142,6 +142,9 @@ func (pr *profile) key(msg tea.KeyPressMsg) tea.Cmd {
 	}); stop {
 		return cmd
 	}
+	if pr.d.BBS() {
+		return pr.bbsKey(msg.String())
+	}
 	n := len(pr.tabs)
 	switch k := msg.String(); k {
 	case "tab":
@@ -160,6 +163,12 @@ func (pr *profile) key(msg tea.KeyPressMsg) tea.Cmd {
 func (pr *profile) View(width, height int) string {
 	if pr.posts.ed != nil {
 		return pr.posts.ed.view()
+	}
+	if pr.posts.led != nil {
+		return pr.posts.led.view()
+	}
+	if pr.d.BBS() {
+		return pr.bbsView(width, height)
 	}
 	if v, ok := pr.load.view(width, height); ok {
 		return v

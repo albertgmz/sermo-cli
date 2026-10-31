@@ -96,6 +96,8 @@ func (r *reader) updateAction(msg tea.Msg) tea.Cmd {
 		return msg.cmd()
 	case sourceMsg:
 		return r.compose(msg)
+	case cardsMsg:
+		r.gotCards(msg)
 	case spoilersMsg:
 		if msg.err != nil {
 			return ui.ErrorCmd(msg.err)
@@ -233,6 +235,11 @@ func (r *reader) pick(msg tea.Msg) tea.Cmd {
 	if i < 0 {
 		return nil
 	}
+	return r.chosen(i)
+}
+
+// chosen runs the action of the picker for the item i.
+func (r *reader) chosen(i int) tea.Cmd {
 	if r.pickKind == pickLink {
 		return ui.Open(r.bodies[r.focus].links[i].URL)
 	}

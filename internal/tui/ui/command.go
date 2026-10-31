@@ -15,6 +15,9 @@ type Command struct {
 	// Run runs the command. Arg is the text after the name, or the digits
 	// of a number. It is "" when the user typed no argument.
 	Run func(arg string) tea.Cmd
+	// NoCount keeps the unread count out of the hint of an M or N command
+	// that is not the global one, for example "[N]uevos".
+	NoCount bool
 }
 
 // Commander is an optional interface of a Screen. In the BBS interface the

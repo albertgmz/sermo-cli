@@ -33,13 +33,16 @@ type threadList struct {
 	rows     []gen.Thread
 	list     ui.List
 	picker   *picker
+	bbs      bbsList
 }
 
 type threadsMsg struct {
 	view *api.NodeView
 	list *api.ThreadList
 	page int
-	err  error
+	// limit is the page size of the request.
+	limit int
+	err   error
 	// refresh is true for a new load of the shown page. It keeps the
 	// cursor and the rows on an error.
 	refresh bool
@@ -133,7 +136,7 @@ func (s *threadList) Keys() []key.Binding {
 // load gets one page. The first call also gets the node.
 func (s *threadList) load(page int) tea.Cmd {
 	s.loading, s.err = true, nil
-	c, id, prefix, view := s.d.API, s.nodeID, s.prefixID, s.view
+	c, id, prefix, view, limit := s.d.API, s.nodeID, s.prefixID, s.view, s.pageLimit()
 	return func() tea.Msg {
 		if view == nil {
 			v, err := c.Node(bg(), id)
@@ -142,8 +145,8 @@ func (s *threadList) load(page int) tea.Cmd {
 			}
 			view = v
 		}
-		list, err := c.Threads(bg(), id, prefix, api.PageOpts{Page: page})
-		return threadsMsg{view: view, list: list, page: page, err: err}
+		list, err := c.Threads(bg(), id, prefix, api.PageOpts{Page: page, Limit: limit})
+		return threadsMsg{view: view, list: list, page: page, limit: limit, err: err}
 	}
 }
 
@@ -152,10 +155,10 @@ func (s *threadList) refresh() tea.Cmd {
 	if s.loading || s.err != nil || s.view == nil {
 		return nil
 	}
-	c, id, prefix, view, page := s.d.API, s.nodeID, s.prefixID, s.view, s.page
+	c, id, prefix, view, page, limit := s.d.API, s.nodeID, s.prefixID, s.view, s.page, s.pageLimit()
 	return func() tea.Msg {
-		list, err := c.Threads(bg(), id, prefix, api.PageOpts{Page: page})
-		return threadsMsg{view: view, list: list, page: page, err: err, refresh: true}
+		list, err := c.Threads(bg(), id, prefix, api.PageOpts{Page: page, Limit: limit})
+		return threadsMsg{view: view, list: list, page: page, limit: limit, err: err, refresh: true}
 	}
 }
 
@@ -171,6 +174,8 @@ func (s *threadList) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		s.list.SetHeight(msg.Height - 4)
+		s.bbs.height = msg.Height
+		return s, s.refit()
 	case threadsMsg:
 		return s, s.loaded(msg)
 	case ui.ResumedMsg:
@@ -212,14 +217,18 @@ func (s *threadList) loaded(msg threadsMsg) tea.Cmd {
 		s.watching = msg.view.Watching != nil
 	}
 	s.view, s.page = msg.view, msg.page
+	s.fitPage(msg.list, msg.page, msg.limit)
 	s.rows = append(append([]gen.Thread{}, msg.list.Sticky...), msg.list.Items...)
 	switch {
 	case msg.list.Total != nil:
-		s.pages = pages(*msg.list.Total)
+		s.pages = s.pageCount(*msg.list.Total)
 	case msg.list.NextCursor != nil:
 		s.pages = max(s.pages, s.page+1)
 	}
 	s.list.SetLen(len(s.rows))
+	if cmd := s.refit(); cmd != nil {
+		return cmd
+	}
 	if msg.refresh {
 		return nil
 	}
@@ -343,6 +352,8 @@ func (s *threadList) View(width, height int) string {
 		return ui.Loading(s.d.Styles, s.sp, "", width, height)
 	case s.err != nil:
 		return errorView(s.d, s.err, width, height)
+	case s.d.BBS():
+		return s.bbsView(width)
 	case s.picker != nil:
 		return s.picker.view(s.d, width, height)
 	}

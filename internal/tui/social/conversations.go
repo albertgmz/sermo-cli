@@ -31,6 +31,8 @@ type conversations struct {
 	pages int
 	list  ui.List
 	ed    *editor
+	led   *lineEditor
+	pg    pager
 	w, h  int
 }
 
@@ -42,7 +44,7 @@ func NewConversations(d *ui.Deps) ui.Screen {
 }
 
 func (c *conversations) Title() string       { return i18n.T("social.conv.title") }
-func (c *conversations) CapturesInput() bool { return c.ed != nil }
+func (c *conversations) CapturesInput() bool { return c.ed != nil || c.led != nil }
 func (c *conversations) Animating() bool {
 	return c.d.Animate() && !c.load.loading && c.ed == nil && c.list.Animating(c.d.Now())
 }
@@ -66,9 +68,9 @@ func (c *conversations) Init() tea.Cmd {
 }
 
 func (c *conversations) fetch(page int) tea.Cmd {
-	client := c.d.API
+	client, limit := c.d.API, c.limit()
 	return tea.Batch(c.load.begin(), func() tea.Msg {
-		data, err := client.Conversations(bg, api.PageOpts{Page: page, Limit: pageSize})
+		data, err := client.Conversations(bg, api.PageOpts{Page: page, Limit: limit})
 		return conversationsMsg{page: page, data: data, err: err}
 	})
 }
@@ -77,19 +79,18 @@ func (c *conversations) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 	if cmd, ok := routeEditor(&c.ed, msg); ok {
 		return c, cmd
 	}
+	if cmd, ok := routeLineEditor(&c.led, msg); ok {
+		return c, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		c.w, c.h = msg.Width, msg.Height
-		c.list.SetHeight(max(c.h-4, 1))
-		if c.ed != nil {
-			c.ed.setSize(c.w, c.h)
-		}
+		c.resize(msg.Width, msg.Height)
 	case spinner.TickMsg:
 		return c, c.load.spin(msg)
 	case conversationsMsg:
 		return c, c.loaded(msg)
 	case conversationCreatedMsg:
-		c.ed = nil
+		c.ed, c.led = nil, nil
 		open := func() tea.Msg { return ui.OpenConversationMsg{ID: msg.id} }
 		return c, tea.Batch(c.fetch(1), open)
 	case tea.KeyPressMsg:
@@ -100,12 +101,27 @@ func (c *conversations) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 	return c, nil
 }
 
+func (c *conversations) resize(w, h int) {
+	c.w, c.h = w, h
+	c.list.SetHeight(max(c.h-4, 1))
+	if c.ed != nil {
+		c.ed.setSize(c.w, c.h)
+	}
+	if c.led != nil {
+		c.led.setSize(w, h)
+	}
+	if c.pg.per == 0 {
+		c.pg.per = bbsRows(h, 8)
+	}
+}
+
 func (c *conversations) loaded(msg conversationsMsg) tea.Cmd {
 	if cmd := c.load.done(msg.err); msg.err != nil {
 		return cmd
 	}
 	c.page, c.items = msg.page, msg.data.Items
-	c.pages = pageCount(msg.data.Total, msg.page)
+	c.pages = pageCountOf(msg.data.Total, msg.page, c.limit())
+	c.pg.clamp(len(c.items))
 	c.list.Reset()
 	c.list.SetHeight(max(c.h-4, 1))
 	c.list.SetLen(len(c.items))
@@ -114,16 +130,23 @@ func (c *conversations) loaded(msg conversationsMsg) tea.Cmd {
 
 // pageCount returns the number of pages for total items, or page when
 // the total is not known.
-func pageCount(total *int, page int) int {
+func pageCount(total *int, page int) int { return pageCountOf(total, page, pageSize) }
+
+// pageCountOf is pageCount for pages of per items.
+func pageCountOf(total *int, page, per int) int {
 	if total == nil {
 		return page
 	}
-	return max((*total+pageSize-1)/pageSize, 1)
+	return max((*total+per-1)/per, 1)
 }
 
 func (c *conversations) key(msg tea.KeyPressMsg) tea.Cmd {
 	if cmd, stop := c.load.blocked(msg, func() tea.Cmd { return c.fetch(c.page) }); stop {
 		return cmd
+	}
+	if c.d.BBS() {
+		c.pg.move(msg.String(), len(c.items))
+		return nil
 	}
 	switch msg.String() {
 	case "c":
@@ -146,6 +169,9 @@ func (c *conversations) key(msg tea.KeyPressMsg) tea.Cmd {
 }
 
 func (c *conversations) compose() tea.Cmd {
+	if c.d.BBS() {
+		return c.composeBBS()
+	}
 	client := c.d.API
 	c.ed = newConversationEditor(c.d, func(ctx context.Context, v draft) (tea.Msg, error) {
 		out, err := client.CreateConversation(ctx, v.Title, v.Body, v.To)
@@ -161,6 +187,12 @@ func (c *conversations) compose() tea.Cmd {
 func (c *conversations) View(width, height int) string {
 	if c.ed != nil {
 		return c.ed.view()
+	}
+	if c.led != nil {
+		return c.led.view()
+	}
+	if c.d.BBS() {
+		return c.bbsView(width, height)
 	}
 	if v, ok := c.load.view(width, height); ok {
 		return v

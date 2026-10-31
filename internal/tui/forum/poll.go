@@ -195,6 +195,9 @@ func (s *pollScreen) View(width, height int) string {
 	case s.poll == nil:
 		return ui.Empty(st, i18n.T("forum.toast.noPoll"), width, height)
 	}
+	if s.d.BBS() {
+		return s.bbsView(width, height)
+	}
 	lines := []string{ui.Header(st, t, s.Title(), width), s.status()}
 	row := 0
 	for qi, q := range s.poll.Questions {

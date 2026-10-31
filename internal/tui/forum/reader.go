@@ -46,6 +46,10 @@ type reader struct {
 	bookmarked  map[int]bool
 	spoilers    map[int]string
 	marked      map[int]bool
+	// cards and sigs hold the author cards and the rendered signatures
+	// of the BBS interface by user ID.
+	cards map[int]*api.Card
+	sigs  map[int][]string
 
 	vp       viewport.Model
 	w, h     int
@@ -118,7 +122,7 @@ func (r *reader) Title() string {
 	return i18n.T("forum.thread.title")
 }
 
-func (r *reader) CapturesInput() bool { return r.picker != nil }
+func (r *reader) CapturesInput() bool { return r.picker != nil && !r.d.BBS() }
 
 func (r *reader) Keys() []key.Binding {
 	b := func(keys []string, help, id string) key.Binding {
@@ -250,7 +254,7 @@ func (r *reader) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 func (r *reader) resize(w, h int) {
 	r.w, r.h = w, h
 	r.vp.SetWidth(w)
-	r.vp.SetHeight(max(h-3, 1))
+	r.vp.SetHeight(max(h-r.headerLines(), 1))
 	if len(r.posts) > 0 {
 		r.renderAll()
 	}
@@ -284,7 +288,7 @@ func (r *reader) loaded(msg readerMsg) tea.Cmd {
 	}
 	r.renderAll()
 	r.jumpTo(r.focus)
-	return r.markRead(r.nextPostsWarm())
+	return tea.Batch(r.markRead(r.nextPostsWarm()), r.loadCards())
 }
 
 // markRead marks the thread read up to the last post of the page. It runs

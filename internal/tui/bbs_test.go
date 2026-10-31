@@ -11,6 +11,7 @@ import (
 	"github.com/albertgmz/sermo-cli/internal/banner"
 	"github.com/albertgmz/sermo-cli/internal/config"
 	"github.com/albertgmz/sermo-cli/internal/i18n"
+	"github.com/albertgmz/sermo-cli/internal/tui/forum"
 	"github.com/albertgmz/sermo-cli/internal/tui/ui"
 )
 
@@ -63,7 +64,7 @@ func bbsModel(t *testing.T, d *ui.Deps, s ui.Screen) *model {
 	drive(m, m.Init(), wait)
 	drive(m, func() tea.Msg { return tea.WindowSizeMsg{Width: 80, Height: 24} }, wait)
 	if s != nil {
-		m.push(s)
+		drive(m, m.push(s), wait)
 	}
 	return m
 }
@@ -229,9 +230,19 @@ func assertStatusBox(t *testing.T, lines []string) {
 	}
 }
 
+// noCommands hides the BBS commands of a screen, so the app uses the
+// fallback for screens without commands.
+type noCommands struct{ ui.Screen }
+
+func (n noCommands) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
+	s, cmd := n.Screen.Update(msg)
+	return noCommands{s}, cmd
+}
+
 func TestBBSFallbackShowsModernScreenInChrome(t *testing.T) {
 	f := newFakeSermo(t)
-	m := bbsModel(t, bbsDeps(t, f, ""), nil)
+	d := bbsDeps(t, f, "")
+	m := bbsModel(t, d, noCommands{forum.NewNodes(d)})
 	out := screenText(m)
 	lines := strings.Split(out, "\n")
 	if len(lines) != 24 || !strings.Contains(lines[1], "Invitado") {
@@ -402,9 +413,33 @@ func TestBBSLoginShowsSession(t *testing.T) {
 
 func TestBBSHintLineLeavesOutHintsThatDoNotFit(t *testing.T) {
 	f := newFakeSermo(t)
-	m := bbsModel(t, bbsDeps(t, f, ""), nil)
+	d := bbsDeps(t, f, "")
+	m := bbsModel(t, d, noCommands{forum.NewNodes(d)})
 	line := strings.Split(screenText(m), "\n")[22]
 	if !strings.Contains(line, "[?]Ayuda  [Q]Salir") || strings.Contains(line, "[V") {
 		t.Errorf("hint line at 80 columns: %q", line)
+	}
+}
+
+func TestBBSScreenCommandsGetNoUnreadCount(t *testing.T) {
+	f := newFakeSermo(t)
+	f.notifications.Store(3)
+	f.conversations.Store(2)
+	m := bbsModel(t, bbsDeps(t, f, testToken), nil)
+	line := strings.Split(screenText(m), "\n")[22]
+	if !strings.Contains(line, i18n.T("bbs.forum.cmd.unread")) || strings.Contains(line, i18n.T("bbs.forum.cmd.unread")+"(3)") {
+		t.Errorf("the index command N must not show the alert count: %q", line)
+	}
+	if !strings.Contains(line, "[M]ensajes(2)") {
+		t.Errorf("the global M must show the message count: %q", line)
+	}
+}
+
+func TestBBSOpenOnlineShowsTheOnlineList(t *testing.T) {
+	f := newFakeSermo(t)
+	m := bbsModel(t, bbsDeps(t, f, ""), nil)
+	drive(m, func() tea.Msg { return ui.OpenOnlineMsg{} }, wait)
+	if got := m.top().Title(); got != i18n.T("bbs.social.online.title") {
+		t.Fatalf("top screen = %q, want the online list", got)
 	}
 }

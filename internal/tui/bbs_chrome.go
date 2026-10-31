@@ -125,7 +125,11 @@ func (m *model) hintLine() string {
 	var labels []string
 	if c, ok := m.top().(ui.Commander); ok {
 		for _, cmd := range c.Commands() {
-			if cmd.Label != "" {
+			switch {
+			case cmd.Label == "":
+			case cmd.NoCount:
+				labels = append(labels, cmd.Label)
+			default:
 				labels = append(labels, m.withCount(cmd.Name, cmd.Label))
 			}
 		}

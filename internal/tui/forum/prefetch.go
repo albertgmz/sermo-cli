@@ -36,8 +36,8 @@ func (s *threadList) warmNextPage() tea.Cmd {
 	if !s.d.Config.LightPrefetch() || s.page >= s.pages {
 		return nil
 	}
-	c, id, prefix, p := s.d.API, s.nodeID, s.prefixID, s.page+1
-	return warmCmd(func() { c.WarmThreads(id, prefix, api.PageOpts{Page: p}) })
+	c, id, prefix, p, limit := s.d.API, s.nodeID, s.prefixID, s.page+1, s.pageLimit()
+	return warmCmd(func() { c.WarmThreads(id, prefix, api.PageOpts{Page: p, Limit: limit}) })
 }
 
 // warmUnread warms the first thread page of the first unread forums in display order.

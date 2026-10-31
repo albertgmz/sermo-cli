@@ -16,7 +16,9 @@ import (
 )
 
 type searchMsg struct {
-	page    int
+	page int
+	// limit is the page size of the request.
+	limit   int
 	data    *api.Page[gen.SearchResult]
 	users   []api.UserMatch
 	members bool
@@ -39,8 +41,11 @@ type search struct {
 	users      []api.UserMatch
 	page       int
 	pages      int
-	list       ui.List
-	w, h       int
+	// shown is the page size of the shown results, or 0.
+	shown int
+	list  ui.List
+	pg    pager
+	w, h  int
 }
 
 // NewSearch returns the search screen.
@@ -90,6 +95,8 @@ func (s *search) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		s.w, s.h = msg.Width, msg.Height
 		s.in.SetWidth(max(s.w-14, 8))
+		s.pg.per = bbsRows(s.h, searchFrame)
+		return s, s.refit()
 	case spinner.TickMsg:
 		return s, s.load.spin(msg)
 	case searchMsg:
@@ -114,6 +121,10 @@ func (s *search) key(msg tea.KeyPressMsg) tea.Cmd {
 	case "ctrl+u":
 		s.members = !s.members
 		s.edit()
+		return nil
+	}
+	if s.d.BBS() {
+		s.pg.move(msg.String(), len(s.items()))
 		return nil
 	}
 	if s.typing {
@@ -182,15 +193,15 @@ func (s *search) run(page int) tea.Cmd {
 	}
 	s.typing, s.searched = false, true
 	s.in.Blur()
-	client, members := s.d.API, s.members
-	opts := api.SearchOpts{Query: q, TitlesOnly: s.titlesOnly, PageOpts: api.PageOpts{Page: page, Limit: pageSize}}
+	client, members, limit := s.d.API, s.members, s.limit()
+	opts := api.SearchOpts{Query: q, TitlesOnly: s.titlesOnly, PageOpts: api.PageOpts{Page: page, Limit: limit}}
 	return tea.Batch(s.load.begin(), func() tea.Msg {
 		if members {
-			users, err := client.SearchUsers(bg, q, pageSize)
+			users, err := client.SearchUsers(bg, q, limit)
 			return searchMsg{users: users, members: true, err: err}
 		}
 		data, err := client.Search(bg, opts)
-		return searchMsg{page: page, data: data, err: err}
+		return searchMsg{page: page, limit: limit, data: data, err: err}
 	})
 }
 
@@ -202,12 +213,13 @@ func (s *search) loaded(msg searchMsg) tea.Cmd {
 	if msg.members {
 		s.users = msg.users
 	} else {
-		s.results, s.page = msg.data.Items, msg.page
-		s.pages = pageCount(msg.data.Total, msg.page)
+		s.results, s.page, s.shown = msg.data.Items, msg.page, msg.limit
+		s.pages = pageCountOf(msg.data.Total, msg.page, msg.limit)
 	}
+	s.pg.sel = 0
 	s.list.Reset()
 	s.list.SetLen(len(s.items()))
-	return nil
+	return s.refit()
 }
 
 func (s *search) open(i int) tea.Cmd {
@@ -222,6 +234,9 @@ func (s *search) open(i int) tea.Cmd {
 }
 
 func (s *search) View(width, height int) string {
+	if s.d.BBS() {
+		return s.bbsView(width, height)
+	}
 	st := s.d.Styles
 	label := st.Muted.Render(i18n.T("social.search.label") + " ")
 	if s.typing {

@@ -20,6 +20,8 @@ import (
 type draft struct {
 	Body, Title string
 	To          []int
+	// Names are the typed usernames of the recipients in the line editor.
+	Names []string
 }
 
 // sendFunc sends a draft. It returns the message for the screen on success.

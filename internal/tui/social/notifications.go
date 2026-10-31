@@ -48,6 +48,7 @@ type notifications struct {
 	list       ui.List
 	unreadOnly bool
 	more       bool
+	pg         pager
 	w, h       int
 }
 
@@ -88,7 +89,7 @@ func (n *notifications) Init() tea.Cmd {
 
 // fetch loads the page after cursor. An empty cursor loads the first page.
 func (n *notifications) fetch(cursor string) tea.Cmd {
-	client, unread := n.d.API, n.unreadOnly
+	client, unread, limit := n.d.API, n.unreadOnly, n.limit()
 	var spin tea.Cmd
 	if cursor == "" {
 		spin = n.load.begin()
@@ -96,7 +97,7 @@ func (n *notifications) fetch(cursor string) tea.Cmd {
 		n.more = true
 	}
 	return tea.Batch(spin, func() tea.Msg {
-		page, err := client.Notifications(bg, unread, api.PageOpts{Cursor: cursor, Limit: pageSize})
+		page, err := client.Notifications(bg, unread, api.PageOpts{Cursor: cursor, Limit: limit})
 		return notificationsMsg{page: page, more: cursor != "", err: err, unread: unread}
 	})
 }
@@ -106,6 +107,7 @@ func (n *notifications) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		n.w, n.h = msg.Width, msg.Height
 		n.list.SetHeight(max(n.h-3, 1))
+		n.pg.per = bbsRows(n.h, 9)
 	case spinner.TickMsg:
 		return n, n.load.spin(msg)
 	case notificationsMsg:
@@ -133,7 +135,7 @@ func (n *notifications) loaded(msg notificationsMsg) tea.Cmd {
 		return cmd
 	}
 	if !msg.more {
-		n.items = nil
+		n.items, n.pg = nil, pager{per: n.pg.per}
 		n.list.Reset()
 		n.list.SetHeight(max(n.h-3, 1))
 	}
@@ -148,6 +150,10 @@ func (n *notifications) key(msg tea.KeyPressMsg) tea.Cmd {
 		return n.fetch("")
 	}); stop {
 		return cmd
+	}
+	if n.d.BBS() {
+		n.pg.move(msg.String(), len(n.items))
+		return nil
 	}
 	switch msg.String() {
 	case "a":
@@ -274,6 +280,9 @@ func actors(item gen.Notification) string {
 }
 
 func (n *notifications) View(width, height int) string {
+	if n.d.BBS() {
+		return n.bbsView(width, height)
+	}
 	if v, ok := n.load.view(width, height); ok {
 		return v
 	}

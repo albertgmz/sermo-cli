@@ -19,6 +19,7 @@ import (
 // renderAll renders the body of each post at the reading width.
 func (r *reader) renderAll() {
 	r.bodies = make([]renderedBody, len(r.posts))
+	r.sigs = nil
 	for i := range r.posts {
 		r.bodies[i] = r.renderBody(r.posts[i])
 	}
@@ -38,7 +39,7 @@ func (r *reader) renderBody(p gen.Post) renderedBody {
 		}
 		atts = append(atts, render.Attachment{ID: a.FileId, URL: a.Url, Filename: name, ContentType: a.ContentType})
 	}
-	text, links, err := r.d.Render.Post(html, atts, ui.ReadingWidth(max(r.w, 20)), r.d.Glamour)
+	text, links, err := r.renderPost(html, atts)
 	if err != nil {
 		return renderedBody{text: r.d.Styles.Error.Render(err.Error())}
 	}
@@ -53,7 +54,7 @@ func (r *reader) assemble() {
 	line := 0
 	for i := range r.posts {
 		r.starts[i] = line
-		block := r.postBlock(i)
+		block := r.block(i)
 		b.WriteString(block)
 		b.WriteString("\n")
 		line += strings.Count(block, "\n") + 1
@@ -151,6 +152,9 @@ func (r *reader) reactionColor(id int) color.Color {
 }
 
 func (r *reader) View(width, height int) string {
+	if r.d.BBS() {
+		return r.bbsView(width, height)
+	}
 	switch {
 	case r.loading && r.view == nil:
 		return ui.Loading(r.d.Styles, r.sp, "", width, height)

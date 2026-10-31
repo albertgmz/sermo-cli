@@ -48,7 +48,11 @@ type postsTab struct {
 	links    []render.Link
 	picker   linkPicker
 	ed       *editor
-	w, h     int
+	led      *lineEditor
+	pg       pager
+	// bbsDetail are the lines of the open post in the BBS view.
+	bbsDetail []string
+	w, h      int
 }
 
 func newPostsTab(d *ui.Deps, userID int) *postsTab {
@@ -60,8 +64,12 @@ func (t *postsTab) start() tea.Cmd { return t.fetch("") }
 
 func (t *postsTab) resize(w, h int) {
 	t.w, t.h = w, h
+	t.pg.per = bbsRows(h, profileFrame)
 	if t.ed != nil {
 		t.ed.setSize(w, h)
+	}
+	if t.led != nil {
+		t.led.setSize(w, h)
 	}
 	if t.open >= 0 {
 		t.render()
@@ -69,7 +77,7 @@ func (t *postsTab) resize(w, h int) {
 }
 
 func (t *postsTab) fetch(cursor string) tea.Cmd {
-	client, id := t.d.API, t.userID
+	client, id, limit := t.d.API, t.userID, t.limit()
 	var spin tea.Cmd
 	if cursor == "" {
 		spin = t.load.begin()
@@ -77,13 +85,16 @@ func (t *postsTab) fetch(cursor string) tea.Cmd {
 		t.more = true
 	}
 	return tea.Batch(spin, func() tea.Msg {
-		page, err := client.ProfilePosts(bg, id, cursor, pageSize)
+		page, err := client.ProfilePosts(bg, id, cursor, limit)
 		return postsMsg{page: page, more: cursor != "", err: err}
 	})
 }
 
 func (t *postsTab) update(msg tea.Msg) tea.Cmd {
 	if cmd, ok := routeEditor(&t.ed, msg); ok {
+		return cmd
+	}
+	if cmd, ok := routeLineEditor(&t.led, msg); ok {
 		return cmd
 	}
 	switch msg := msg.(type) {
@@ -94,10 +105,10 @@ func (t *postsTab) update(msg tea.Msg) tea.Cmd {
 	case commentsMsg:
 		return t.commentsLoaded(msg)
 	case profilePostSentMsg:
-		t.ed = nil
+		t.ed, t.led = nil, nil
 		return tea.Batch(ui.Toast(i18n.T("social.sent"), ui.ToastSuccess), t.fetch(""))
 	case commentSentMsg:
-		t.ed = nil
+		t.ed, t.led = nil, nil
 		return tea.Batch(ui.Toast(i18n.T("social.sent"), ui.ToastSuccess), t.commentAdded(msg.postID))
 	case tea.MouseWheelMsg:
 		t.list.Update(msg)
@@ -115,7 +126,7 @@ func (t *postsTab) loaded(msg postsMsg) tea.Cmd {
 	}
 	if !msg.more {
 		t.items, t.open = nil, -1
-		t.list = ui.List{}
+		t.list, t.pg = ui.List{}, pager{per: t.pg.per}
 	}
 	t.items = append(t.items, msg.page.Items...)
 	t.next = msg.page.NextCursor
@@ -196,6 +207,10 @@ func (t *postsTab) toggle(i int) tea.Cmd {
 
 // render makes the text of the open post and its comments.
 func (t *postsTab) render() {
+	if t.d.BBS() {
+		t.renderBBS()
+		return
+	}
 	s, post := t.d.Styles, t.items[t.open]
 	width := ui.ReadingWidth(t.w)
 	text, links, err := t.d.Render.Post(post.BodyHtml, attachments(post.Attachments), width, t.d.Glamour)
@@ -220,12 +235,23 @@ func (t *postsTab) write() tea.Cmd {
 	}
 	client, id := t.d.API, t.userID
 	heading := i18n.Tf("social.editor.profilePost", map[string]any{"Name": t.owner})
-	t.ed = newEditor(t.d, heading, api.MessageTarget(0), "", func(ctx context.Context, v draft) (tea.Msg, error) {
+	t.openEditor(heading, func(ctx context.Context, v draft) (tea.Msg, error) {
 		_, err := client.CreateProfilePost(ctx, id, v.Body)
 		return profilePostSentMsg{}, err
 	})
-	t.ed.setSize(t.w, t.h)
 	return nil
+}
+
+// openEditor opens the editor of the interface: the line editor in the
+// BBS interface, else the BB code editor.
+func (t *postsTab) openEditor(heading string, send sendFunc) {
+	if t.d.BBS() {
+		t.led = newLineEditor(t.d, heading, api.MessageTarget(0), "", send)
+		t.led.setSize(t.w, t.h)
+		return
+	}
+	t.ed = newEditor(t.d, heading, api.MessageTarget(0), "", send)
+	t.ed.setSize(t.w, t.h)
 }
 
 func (t *postsTab) comment() tea.Cmd {
@@ -235,17 +261,21 @@ func (t *postsTab) comment() tea.Cmd {
 	if len(t.items) == 0 {
 		return nil
 	}
-	post := t.items[t.list.Cursor()]
+	return t.commentOn(t.list.Cursor())
+}
+
+// commentOn opens the editor for a comment on the post i.
+func (t *postsTab) commentOn(i int) tea.Cmd {
+	post := t.items[i]
 	if !post.CanComment {
 		return ui.Toast(i18n.T("social.profile.cannotComment"), ui.ToastError)
 	}
 	client := t.d.API
 	heading := i18n.Tf("social.editor.comment", map[string]any{"Name": api.AuthorName(post.Author)})
-	t.ed = newEditor(t.d, heading, api.MessageTarget(0), "", func(ctx context.Context, v draft) (tea.Msg, error) {
+	t.openEditor(heading, func(ctx context.Context, v draft) (tea.Msg, error) {
 		_, err := client.CreateProfileComment(ctx, post.Id, v.Body)
 		return commentSentMsg{postID: post.Id}, err
 	})
-	t.ed.setSize(t.w, t.h)
 	return nil
 }
 

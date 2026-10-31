@@ -38,6 +38,8 @@ func (m *model) updateIntent(msg tea.Msg) (tea.Cmd, bool) {
 		return m.push(forum.NewThread(m.d, msg.ThreadID, msg.PostID)), true
 	case ui.OpenProfileMsg:
 		return m.push(social.NewProfile(m.d, msg.UserID)), true
+	case ui.OpenOnlineMsg:
+		return m.push(social.NewOnline(m.d)), true
 	case ui.OpenConversationMsg:
 		return m.members(func() ui.Screen { return social.NewConversation(m.d, msg.ID) }, false), true
 	case ui.ComposeMsg:
