@@ -1,0 +1,16 @@
+{
+  "locales.loadFailed": {
+    "one": "No se pudo usar {{.Count}} archivo de traducción: {{.Files}}",
+    "other": "No se pudieron usar {{.Count}} archivos de traducción: {{.Files}}"
+  },
+  "locales.err.read": "no se puede leer",
+  "locales.err.syntax": "no es un catálogo válido",
+  "locales.err.language": "el nombre de la carpeta no es un código de idioma",
+  "cli.locales.short": "Gestiona los archivos de traducción",
+  "cli.locales.export.short": "Escribe los textos de un idioma en la carpeta de traducciones",
+  "cli.locales.export.written": "Escrito: {{.File}}",
+  "cli.locales.export.skipped": "Ya existe, no se cambia: {{.File}}",
+  "cli.locales.export.done": "Edita los archivos y abre sermo otra vez. Los textos que faltan salen en español.",
+  "cli.locales.export.badLanguage": "{{.Lang}} no es un código de idioma. Usa por ejemplo pt o pt-BR.",
+  "cli.locales.export.failed": "No se pudieron escribir los archivos: {{.Error}}"
+}

@@ -112,8 +112,12 @@ func (r *Renderer) glamour(md string, width int, style string) (string, error) {
 	key := termKey{width, style}
 	tr, ok := r.terms[key]
 	if !ok {
+		opts := []glamour.TermRendererOption{glamour.WithStandardStyle(style), glamour.WithWordWrap(width)}
+		if style == bbsStyle {
+			opts = bbsOptions(width)
+		}
 		var err error
-		tr, err = glamour.NewTermRenderer(glamour.WithStandardStyle(style), glamour.WithWordWrap(width))
+		tr, err = glamour.NewTermRenderer(opts...)
 		if err != nil {
 			return "", err
 		}

@@ -17,6 +17,48 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// Defines values for ActivityPlaceKind.
+const (
+	ActivityPlaceKindConversations ActivityPlaceKind = "conversations"
+	ActivityPlaceKindForum         ActivityPlaceKind = "forum"
+	ActivityPlaceKindForumList     ActivityPlaceKind = "forumList"
+	ActivityPlaceKindLatest        ActivityPlaceKind = "latest"
+	ActivityPlaceKindMember        ActivityPlaceKind = "member"
+	ActivityPlaceKindMembers       ActivityPlaceKind = "members"
+	ActivityPlaceKindOnline        ActivityPlaceKind = "online"
+	ActivityPlaceKindPage          ActivityPlaceKind = "page"
+	ActivityPlaceKindSearch        ActivityPlaceKind = "search"
+	ActivityPlaceKindThread        ActivityPlaceKind = "thread"
+)
+
+// Valid indicates whether the value is a known member of the ActivityPlaceKind enum.
+func (e ActivityPlaceKind) Valid() bool {
+	switch e {
+	case ActivityPlaceKindConversations:
+		return true
+	case ActivityPlaceKindForum:
+		return true
+	case ActivityPlaceKindForumList:
+		return true
+	case ActivityPlaceKindLatest:
+		return true
+	case ActivityPlaceKindMember:
+		return true
+	case ActivityPlaceKindMembers:
+		return true
+	case ActivityPlaceKindOnline:
+		return true
+	case ActivityPlaceKindPage:
+		return true
+	case ActivityPlaceKindSearch:
+		return true
+	case ActivityPlaceKindThread:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Analytics0Provider.
 const (
 	Analytics0ProviderNone Analytics0Provider = "none"
@@ -148,13 +190,13 @@ func (e FeatureKind) Valid() bool {
 
 // Defines values for GuestAuthorKind.
 const (
-	Guest GuestAuthorKind = "guest"
+	GuestAuthorKindGuest GuestAuthorKind = "guest"
 )
 
 // Valid indicates whether the value is a known member of the GuestAuthorKind enum.
 func (e GuestAuthorKind) Valid() bool {
 	switch e {
-	case Guest:
+	case GuestAuthorKindGuest:
 		return true
 	default:
 		return false
@@ -163,13 +205,13 @@ func (e GuestAuthorKind) Valid() bool {
 
 // Defines values for MemberAuthorKind.
 const (
-	Member MemberAuthorKind = "member"
+	MemberAuthorKindMember MemberAuthorKind = "member"
 )
 
 // Valid indicates whether the value is a known member of the MemberAuthorKind enum.
 func (e MemberAuthorKind) Valid() bool {
 	switch e {
-	case Member:
+	case MemberAuthorKindMember:
 		return true
 	default:
 		return false
@@ -266,6 +308,27 @@ func (e NodeWatchMode) Valid() bool {
 	case NodeWatchModePosts:
 		return true
 	case NodeWatchModeThreads:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OnlineVisitorType.
+const (
+	OnlineVisitorTypeGuest  OnlineVisitorType = "guest"
+	OnlineVisitorTypeMember OnlineVisitorType = "member"
+	OnlineVisitorTypeRobot  OnlineVisitorType = "robot"
+)
+
+// Valid indicates whether the value is a known member of the OnlineVisitorType enum.
+func (e OnlineVisitorType) Valid() bool {
+	switch e {
+	case OnlineVisitorTypeGuest:
+		return true
+	case OnlineVisitorTypeMember:
+		return true
+	case OnlineVisitorTypeRobot:
 		return true
 	default:
 		return false
@@ -1073,6 +1136,30 @@ func (e NotificationsMarkViewed200JSONResponseBodyOk) Valid() bool {
 	}
 }
 
+// Defines values for OnlineListParamsType.
+const (
+	OnlineListParamsTypeAll    OnlineListParamsType = "all"
+	OnlineListParamsTypeGuest  OnlineListParamsType = "guest"
+	OnlineListParamsTypeMember OnlineListParamsType = "member"
+	OnlineListParamsTypeRobot  OnlineListParamsType = "robot"
+)
+
+// Valid indicates whether the value is a known member of the OnlineListParamsType enum.
+func (e OnlineListParamsType) Valid() bool {
+	switch e {
+	case OnlineListParamsTypeAll:
+		return true
+	case OnlineListParamsTypeGuest:
+		return true
+	case OnlineListParamsTypeMember:
+		return true
+	case OnlineListParamsTypeRobot:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReactionTypesListParamsLanguage.
 const (
 	ReactionTypesListParamsLanguageEn ReactionTypesListParamsLanguage = "en"
@@ -1180,6 +1267,18 @@ func (e ProfilesGet200JSONResponseBodySeoRobots) Valid() bool {
 		return false
 	}
 }
+
+// ActivityPlace defines model for ActivityPlace.
+type ActivityPlace struct {
+	Kind   ActivityPlaceKind `json:"kind"`
+	Target *struct {
+		Id    int    `json:"id"`
+		Title string `json:"title"`
+	} `json:"target"`
+}
+
+// ActivityPlaceKind defines model for ActivityPlace.Kind.
+type ActivityPlaceKind string
 
 // Analytics defines model for Analytics.
 type Analytics struct {
@@ -1557,6 +1656,21 @@ type Notification struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 	Url       string    `json:"url"`
 }
+
+// OnlineVisitor defines model for OnlineVisitor.
+type OnlineVisitor struct {
+	Activity VisitorActivity `json:"activity"`
+	Card     *MemberCard     `json:"card"`
+	Ip       *string         `json:"ip"`
+	Robot    *struct {
+		Name *string `json:"name"`
+		Url  *string `json:"url"`
+	} `json:"robot"`
+	Type OnlineVisitorType `json:"type"`
+}
+
+// OnlineVisitorType defines model for OnlineVisitor.Type.
+type OnlineVisitorType string
 
 // PaletteColor defines model for PaletteColor.
 type PaletteColor struct {
@@ -2232,6 +2346,14 @@ type UserSummary struct {
 	Username string `json:"username"`
 }
 
+// VisitorActivity defines model for VisitorActivity.
+type VisitorActivity struct {
+	// At ISO 8601 UTC timestamp
+	At     time.Time      `json:"at"`
+	Hidden bool           `json:"hidden"`
+	Place  *ActivityPlace `json:"place"`
+}
+
 // PaletteColorsListParams defines parameters for PaletteColorsList.
 type PaletteColorsListParams struct {
 	Kind PaletteColorsListParamsKind `form:"kind" json:"kind"`
@@ -2458,6 +2580,15 @@ type NotificationsMarkViewedJSONBody = map[string]interface{}
 
 // NotificationsMarkViewed200JSONResponseBodyOk defines parameters for NotificationsMarkViewed.
 type NotificationsMarkViewed200JSONResponseBodyOk bool
+
+// OnlineListParams defines parameters for OnlineList.
+type OnlineListParams struct {
+	Type *OnlineListParamsType `form:"type,omitempty" json:"type,omitempty"`
+	Page *int                  `form:"page,omitempty" json:"page,omitempty"`
+}
+
+// OnlineListParamsType defines parameters for OnlineList.
+type OnlineListParamsType string
 
 // PollsVoteJSONBody defines parameters for PollsVote.
 type PollsVoteJSONBody struct {
@@ -3296,6 +3427,11 @@ type ClientInterface interface {
 	// Corresponds with PUT /api/v1/notifications/viewed (the `NotificationsMarkViewed` operationId).
 	NotificationsMarkViewed(ctx context.Context, body NotificationsMarkViewedJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// OnlineList The current visitors, most recently seen first, 25 to a page: members seen in the last 24 hours, and guests and robots that viewed a page in the last hour (robots are told apart by their user agent). `type` keeps one kind. The place follows the rules of users.activity. Members who hide their online status are left out except for themselves and holders of profile.bypassPrivacy (`activity.hidden` true); banned and erased members are left out. The list may be up to half a minute old. `total` counts the visitors of the type for this viewer; a page past the last one is empty. Requires site.view and member.viewList.
+	//
+	// Corresponds with GET /api/v1/online (the `OnlineList` operationId).
+	OnlineList(ctx context.Context, params *OnlineListParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// PollsVoteWithBody Vote in a poll (1 to `maxChoices` answers; a later call replaces the vote when changes are allowed), or answer one question of a quiz (one answer, final). The answer comes back in the poll: for a quiz it now carries that question's right answer and explanation. Needs poll.vote, a visible thread the viewer can read and an open poll.
 	//
 	// Takes any type of body and a specified content type.
@@ -3376,6 +3512,11 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /api/v1/site (the `SiteGet` operationId).
 	SiteGet(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SiteStats The site's totals: visible threads and messages in the forums guests can open, members (banned, erased and waiting accounts left out) and the newest member. The numbers are the same for every viewer and may be up to ten minutes old; `latestMember` is null unless the viewer holds profile.view and member.viewList, and is the minimal card (`card.restricted` true) when they may not open that profile. Requires site.view.
+	//
+	// Corresponds with GET /api/v1/site/stats (the `SiteStats` operationId).
+	SiteStats(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SpoilersGet The HTML of one spoiler of a post, conversation message, profile post or comment. A body's HTML holds only a placeholder naming the spoiler's position; the content is returned here to a viewer who can see the item (and holds `site.view`), and is not found otherwise.
 	//
@@ -4074,6 +4215,21 @@ func (c *Client) NotificationsMarkViewed(ctx context.Context, body Notifications
 	return c.Client.Do(req)
 }
 
+// OnlineList The current visitors, most recently seen first, 25 to a page: members seen in the last 24 hours, and guests and robots that viewed a page in the last hour (robots are told apart by their user agent). `type` keeps one kind. The place follows the rules of users.activity. Members who hide their online status are left out except for themselves and holders of profile.bypassPrivacy (`activity.hidden` true); banned and erased members are left out. The list may be up to half a minute old. `total` counts the visitors of the type for this viewer; a page past the last one is empty. Requires site.view and member.viewList.
+//
+// Corresponds with GET /api/v1/online (the `OnlineList` operationId).
+func (c *Client) OnlineList(ctx context.Context, params *OnlineListParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewOnlineListRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // PollsVoteWithBody Vote in a poll (1 to `maxChoices` answers; a later call replaces the vote when changes are allowed), or answer one question of a quiz (one answer, final). The answer comes back in the poll: for a quiz it now carries that question's right answer and explanation. Needs poll.vote, a visible thread the viewer can read and an open poll.
 //
 // Takes any type of body and a specified content type.
@@ -4275,6 +4431,21 @@ func (c *Client) SearchQuery(ctx context.Context, params *SearchQueryParams, req
 // Corresponds with GET /api/v1/site (the `SiteGet` operationId).
 func (c *Client) SiteGet(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSiteGetRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SiteStats The site's totals: visible threads and messages in the forums guests can open, members (banned, erased and waiting accounts left out) and the newest member. The numbers are the same for every viewer and may be up to ten minutes old; `latestMember` is null unless the viewer holds profile.view and member.viewList, and is the minimal card (`card.restricted` true) when they may not open that profile. Requires site.view.
+//
+// Corresponds with GET /api/v1/site/stats (the `SiteStats` operationId).
+func (c *Client) SiteStats(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSiteStatsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -5959,6 +6130,72 @@ func NewNotificationsMarkViewedRequestWithBody(server string, contentType string
 	return req, nil
 }
 
+// NewOnlineListRequest constructs an http.Request for the OnlineList method
+func NewOnlineListRequest(server string, params *OnlineListParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/online")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Type != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "type", *params.Type, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "page", *params.Page, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewPollsVoteRequest calls the generic PollsVote builder with application/json body
 func NewPollsVoteRequest(server string, pollId int, body PollsVoteJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -6445,6 +6682,33 @@ func NewSiteGetRequest(server string) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/api/v1/site")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSiteStatsRequest constructs an http.Request for the SiteStats method
+func NewSiteStatsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1/site/stats")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -7639,6 +7903,13 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /api/v1/notifications/viewed (the `NotificationsMarkViewed` operationId).
 	NotificationsMarkViewedWithResponse(ctx context.Context, body NotificationsMarkViewedJSONRequestBody, reqEditors ...RequestEditorFn) (*NotificationsMarkViewedResponse, error)
 
+	// OnlineListWithResponse The current visitors, most recently seen first, 25 to a page: members seen in the last 24 hours, and guests and robots that viewed a page in the last hour (robots are told apart by their user agent). `type` keeps one kind. The place follows the rules of users.activity. Members who hide their online status are left out except for themselves and holders of profile.bypassPrivacy (`activity.hidden` true); banned and erased members are left out. The list may be up to half a minute old. `total` counts the visitors of the type for this viewer; a page past the last one is empty. Requires site.view and member.viewList.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /api/v1/online (the `OnlineList` operationId).
+	OnlineListWithResponse(ctx context.Context, params *OnlineListParams, reqEditors ...RequestEditorFn) (*OnlineListResponse, error)
+
 	// PollsVoteWithBodyWithResponse Vote in a poll (1 to `maxChoices` answers; a later call replaces the vote when changes are allowed), or answer one question of a quiz (one answer, final). The answer comes back in the poll: for a quiz it now carries that question's right answer and explanation. Needs poll.vote, a visible thread the viewer can read and an open poll.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -7729,6 +8000,13 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /api/v1/site (the `SiteGet` operationId).
 	SiteGetWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*SiteGetResponse, error)
+
+	// SiteStatsWithResponse The site's totals: visible threads and messages in the forums guests can open, members (banned, erased and waiting accounts left out) and the newest member. The numbers are the same for every viewer and may be up to ten minutes old; `latestMember` is null unless the viewer holds profile.view and member.viewList, and is the minimal card (`card.restricted` true) when they may not open that profile. Requires site.view.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /api/v1/site/stats (the `SiteStats` operationId).
+	SiteStatsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*SiteStatsResponse, error)
 
 	// SpoilersGetWithResponse The HTML of one spoiler of a post, conversation message, profile post or comment. A body's HTML holds only a placeholder naming the spoiler's position; the content is returned here to a viewer who can see the item (and holds `site.view`), and is not found otherwise.
 	//
@@ -10585,6 +10863,113 @@ func (r NotificationsMarkViewedResponse) ContentType() string {
 	return ""
 }
 
+type OnlineListResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Items   []OnlineVisitor `json:"items"`
+		Page    int             `json:"page"`
+		PerPage int             `json:"perPage"`
+		Total   int             `json:"total"`
+	}
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *Error
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Error
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Error
+	// JSON415 the response for an HTTP 415 `application/json` response
+	JSON415 *Error
+	// JSON429 the response for an HTTP 429 `application/json` response
+	JSON429 *Error
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r OnlineListResponse) GetJSON200() *struct {
+	Items   []OnlineVisitor `json:"items"`
+	Page    int             `json:"page"`
+	PerPage int             `json:"perPage"`
+	Total   int             `json:"total"`
+} {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r OnlineListResponse) GetJSON400() *Error {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r OnlineListResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r OnlineListResponse) GetJSON403() *Error {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r OnlineListResponse) GetJSON404() *Error {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r OnlineListResponse) GetJSON409() *Error {
+	return r.JSON409
+}
+
+// GetJSON415 returns the response for an HTTP 415 `application/json` response
+func (r OnlineListResponse) GetJSON415() *Error {
+	return r.JSON415
+}
+
+// GetJSON429 returns the response for an HTTP 429 `application/json` response
+func (r OnlineListResponse) GetJSON429() *Error {
+	return r.JSON429
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r OnlineListResponse) GetJSON500() *Error {
+	return r.JSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r OnlineListResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r OnlineListResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r OnlineListResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r OnlineListResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type PollsVoteResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -11474,6 +11859,113 @@ func (r SiteGetResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SiteGetResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SiteStatsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		LatestMember *MemberCard `json:"latestMember"`
+		Members      int         `json:"members"`
+		Posts        int         `json:"posts"`
+		Threads      int         `json:"threads"`
+	}
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *Error
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Error
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *Error
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *Error
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *Error
+	// JSON415 the response for an HTTP 415 `application/json` response
+	JSON415 *Error
+	// JSON429 the response for an HTTP 429 `application/json` response
+	JSON429 *Error
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *Error
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SiteStatsResponse) GetJSON200() *struct {
+	LatestMember *MemberCard `json:"latestMember"`
+	Members      int         `json:"members"`
+	Posts        int         `json:"posts"`
+	Threads      int         `json:"threads"`
+} {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r SiteStatsResponse) GetJSON400() *Error {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r SiteStatsResponse) GetJSON401() *Error {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r SiteStatsResponse) GetJSON403() *Error {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r SiteStatsResponse) GetJSON404() *Error {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r SiteStatsResponse) GetJSON409() *Error {
+	return r.JSON409
+}
+
+// GetJSON415 returns the response for an HTTP 415 `application/json` response
+func (r SiteStatsResponse) GetJSON415() *Error {
+	return r.JSON415
+}
+
+// GetJSON429 returns the response for an HTTP 429 `application/json` response
+func (r SiteStatsResponse) GetJSON429() *Error {
+	return r.JSON429
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r SiteStatsResponse) GetJSON500() *Error {
+	return r.JSON500
+}
+
+// GetBody returns the raw response body bytes
+func (r SiteStatsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SiteStatsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SiteStatsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SiteStatsResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -13774,6 +14266,19 @@ func (c *ClientWithResponses) NotificationsMarkViewedWithResponse(ctx context.Co
 	return ParseNotificationsMarkViewedResponse(rsp)
 }
 
+// OnlineListWithResponse The current visitors, most recently seen first, 25 to a page: members seen in the last 24 hours, and guests and robots that viewed a page in the last hour (robots are told apart by their user agent). `type` keeps one kind. The place follows the rules of users.activity. Members who hide their online status are left out except for themselves and holders of profile.bypassPrivacy (`activity.hidden` true); banned and erased members are left out. The list may be up to half a minute old. `total` counts the visitors of the type for this viewer; a page past the last one is empty. Requires site.view and member.viewList.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /api/v1/online (the `OnlineList` operationId).
+func (c *ClientWithResponses) OnlineListWithResponse(ctx context.Context, params *OnlineListParams, reqEditors ...RequestEditorFn) (*OnlineListResponse, error) {
+	rsp, err := c.OnlineList(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseOnlineListResponse(rsp)
+}
+
 // PollsVoteWithBodyWithResponse Vote in a poll (1 to `maxChoices` answers; a later call replaces the vote when changes are allowed), or answer one question of a quiz (one answer, final). The answer comes back in the poll: for a quiz it now carries that question's right answer and explanation. Needs poll.vote, a visible thread the viewer can read and an open poll.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -13941,6 +14446,19 @@ func (c *ClientWithResponses) SiteGetWithResponse(ctx context.Context, reqEditor
 		return nil, err
 	}
 	return ParseSiteGetResponse(rsp)
+}
+
+// SiteStatsWithResponse The site's totals: visible threads and messages in the forums guests can open, members (banned, erased and waiting accounts left out) and the newest member. The numbers are the same for every viewer and may be up to ten minutes old; `latestMember` is null unless the viewer holds profile.view and member.viewList, and is the minimal card (`card.restricted` true) when they may not open that profile. Requires site.view.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /api/v1/site/stats (the `SiteStats` operationId).
+func (c *ClientWithResponses) SiteStatsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*SiteStatsResponse, error) {
+	rsp, err := c.SiteStats(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSiteStatsResponse(rsp)
 }
 
 // SpoilersGetWithResponse The HTML of one spoiler of a post, conversation message, profile post or comment. A body's HTML holds only a placeholder naming the spoiler's position; the content is returned here to a viewer who can see the item (and holds `site.view`), and is not found otherwise.
@@ -16431,6 +16949,93 @@ func ParseNotificationsMarkViewedResponse(rsp *http.Response) (*NotificationsMar
 	return response, nil
 }
 
+// ParseOnlineListResponse parses an HTTP response from a OnlineListWithResponse call
+func ParseOnlineListResponse(rsp *http.Response) (*OnlineListResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &OnlineListResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Items   []OnlineVisitor `json:"items"`
+			Page    int             `json:"page"`
+			PerPage int             `json:"perPage"`
+			Total   int             `json:"total"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 415:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON415 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParsePollsVoteResponse parses an HTTP response from a PollsVoteWithResponse call
 func ParsePollsVoteResponse(rsp *http.Response) (*PollsVoteResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -17114,6 +17719,93 @@ func ParseSiteGetResponse(rsp *http.Response) (*SiteGetResponse, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Site
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 415:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON415 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON429 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSiteStatsResponse parses an HTTP response from a SiteStatsWithResponse call
+func ParseSiteStatsResponse(rsp *http.Response) (*SiteStatsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SiteStatsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			LatestMember *MemberCard `json:"latestMember"`
+			Members      int         `json:"members"`
+			Posts        int         `json:"posts"`
+			Threads      int         `json:"threads"`
+		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

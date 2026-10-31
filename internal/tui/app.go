@@ -40,35 +40,46 @@ type model struct {
 	slide       toastSlide
 	confirmQuit bool
 	ticking     bool
+
+	// The state of the BBS interface.
+	bbsOn      bool   // the interface of the last frame was BBS
+	input      string // the text of the prompt
+	siteDesc   string
+	online     int
+	haveOnline bool
+	onlineAt   time.Time // the time of the last visitor count request
+	stats      *api.SiteStats
+	statsAsked bool
+	group      string // the group title of the member in upper case
 }
 
 type hideToastMsg struct{ id int }
 
 func (m *model) Init() tea.Cmd {
-	cmds := []tea.Cmd{tea.RequestBackgroundColor, m.loadThemes(), m.loadSite(), wrap(m.stack[0], m.stack[0].Init()), m.nextClock()}
+	cmds := []tea.Cmd{tea.RequestBackgroundColor, m.loadThemes(), m.loadLocales(), m.loadSite(), wrap(m.stack[0], m.stack[0].Init()), m.nextClock()}
 	if m.d.Cred.Token != "" {
 		cmds = append(cmds, m.loadMe(false), m.loadCounters(false), m.nextPoll())
 	}
-	return tea.Batch(append(cmds, m.ensureTick())...)
+	return tea.Batch(append(cmds, m.bbsData(), m.ensureTick())...)
 }
 
 // Update gives the result of a screen Cmd to that screen. It gives other
 // messages to the app handlers, and then to the top screen.
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if o, ok := msg.(ownedMsg); ok {
-		return m, tea.Batch(m.owned(o), m.ensureTick())
+		return m, tea.Batch(m.owned(o), m.syncMode(), m.ensureTick())
 	}
 	cmd, handled := m.handle(msg)
 	if !handled {
 		cmd = m.forward(msg)
 	}
-	return m, tea.Batch(cmd, m.ensureTick())
+	return m, tea.Batch(cmd, m.syncMode(), m.ensureTick())
 }
 
 // handle runs the app handlers in order. The first handler that knows the
 // message handles it. It returns false when no handler knows the message.
 func (m *model) handle(msg tea.Msg) (tea.Cmd, bool) {
-	for _, h := range []func(tea.Msg) (tea.Cmd, bool){m.updateFrame, m.updateNav, m.updateSession, m.updateIntent, m.updateThemes} {
+	for _, h := range []func(tea.Msg) (tea.Cmd, bool){m.updateFrame, m.updateNav, m.updateSession, m.updateIntent, m.updateThemes, m.updateLocales, m.updateBBS} {
 		if cmd, handled := h(msg); handled {
 			return cmd, true
 		}
@@ -125,6 +136,9 @@ func (m *model) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 		m.splash = nil
 		return nil
 	}
+	if m.d.BBS() {
+		return m.bbsKey(msg)
+	}
 	if m.top().CapturesInput() {
 		return m.forward(msg)
 	}
@@ -156,6 +170,9 @@ func (m *model) ensureTick() tea.Cmd {
 }
 
 func (m *model) animating() bool {
+	if m.splash != nil && m.d.BBS() {
+		return m.d.Motion() && !m.bbsCrawlDone()
+	}
 	if !m.d.Animate() {
 		return false
 	}
@@ -171,6 +188,9 @@ func (m *model) animating() bool {
 
 // contentSize is the size of the content area inside the frame.
 func (m *model) contentSize() (int, int) {
+	if m.d.BBS() {
+		return m.w, max(m.h-bbsChromeHeight, 0)
+	}
 	return max(m.w-4, 0), max(m.h-4, 0)
 }
 
@@ -198,6 +218,8 @@ func (m *model) render() string {
 		return ""
 	case m.w < minWidth || m.h < minHeight:
 		return tooSmall(m.d.Styles, m.w, m.h)
+	case m.d.BBS():
+		return m.renderBBSScreen()
 	case m.splash != nil:
 		return m.splash.View(m.site, m.w, m.h)
 	}

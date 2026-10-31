@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"io/fs"
 	"path"
+	"slices"
 	"strings"
 	"sync"
 
@@ -24,7 +25,8 @@ import (
 
 const defaultLocale = "es"
 
-var supported = map[string]bool{"es": true, "en": true}
+// builtin are the languages of the embedded catalogs.
+var builtin = []string{"es", "en"}
 
 //go:embed locales
 var locales embed.FS
@@ -34,6 +36,7 @@ var (
 	mu        sync.RWMutex
 	current   string
 	localizer *goi18n.Localizer
+	languages = builtin // the languages of the bundle in display order
 )
 
 func init() {
@@ -80,16 +83,25 @@ func catalogIDs() (map[string]map[string]bool, error) {
 	return ids, err
 }
 
-// SetLocale sets the language of all texts. The values are "es" and "en".
-// An unknown value sets "es".
+// SetLocale sets the language of all texts. The values are "es", "en" and
+// the languages of the user catalogs that LoadDir found. An unknown value
+// sets "es".
 func SetLocale(lang string) {
-	if !supported[lang] {
-		lang = defaultLocale
-	}
 	mu.Lock()
 	defer mu.Unlock()
+	if !slices.Contains(languages, lang) {
+		lang = defaultLocale
+	}
 	current = lang
 	localizer = goi18n.NewLocalizer(bundle, lang)
+}
+
+// Locales returns the languages that SetLocale accepts: "es", "en" and
+// then the user languages in the order of their names.
+func Locales() []string {
+	mu.RLock()
+	defer mu.RUnlock()
+	return slices.Clone(languages)
 }
 
 // Locale returns the current language.

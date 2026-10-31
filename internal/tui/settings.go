@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strconv"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -21,10 +22,12 @@ const (
 	rowMotion
 	rowLanguage
 	rowPrefetch
+	rowInterface
 	settingsRows
 )
 
-var locales = []string{"es", "en"}
+// interfaces are the values of the interface row. "" is the modern interface.
+var interfaces = []string{"", config.InterfaceBBS}
 
 // prefetchLevels are the values of the prefetch row. "" is the default: no prefetch.
 var prefetchLevels = []string{"", config.PrefetchLight, config.PrefetchFull}
@@ -81,10 +84,12 @@ func (s *settings) change(dir int) tea.Cmd {
 	case rowMotion:
 		c.ReducedMotion = !c.ReducedMotion
 	case rowLanguage:
-		c.Locale = cycle(locales, i18n.Locale(), dir)
+		c.Locale = cycle(i18n.Locales(), i18n.Locale(), dir)
 		i18n.SetLocale(c.Locale)
 	case rowPrefetch:
 		c.Prefetch = cycle(prefetchLevels, c.Prefetch, dir)
+	case rowInterface:
+		c.Interface = cycle(interfaces, c.Interface, dir)
 	}
 	if err := config.Save(*c); err != nil {
 		return ui.Toast(i18n.T("core.toast.saveFailed"), ui.ToastError)
@@ -140,8 +145,13 @@ func (s *settings) value(row int) string {
 		return i18n.T("core.settings.off")
 	case rowPrefetch:
 		return prefetchName(c)
+	case rowInterface:
+		if c.BBS() {
+			return i18n.T("bbs.interface.bbs")
+		}
+		return i18n.T("bbs.interface.modern")
 	}
-	return i18n.T("core.lang." + i18n.Locale())
+	return i18n.LanguageName(i18n.Locale())
 }
 
 // prefetchName returns the name of the prefetch level. An unknown value is off.
@@ -166,11 +176,14 @@ func themeName(t theme.Theme) string {
 func settingLabel(row int) string {
 	return i18n.T([]string{
 		"core.settings.theme", "core.settings.effect", "core.settings.motion", "core.settings.language",
-		"prefetch.settings.label",
+		"prefetch.settings.label", "bbs.settings.interface",
 	}[row])
 }
 
 func (s *settings) View(width, height int) string {
+	if s.d.BBS() {
+		return s.bbsView(width)
+	}
 	st, t := s.d.Styles, s.d.Theme
 	labelW := 0
 	for r := range settingsRows {
@@ -206,4 +219,50 @@ func (s *settings) preview(width, height int) string {
 		t = s.d.AnimT
 	}
 	return fx.Render(e, width, height, t, []string{" " + s.d.Theme.Name + " "}, fx.RenderOptions{ASCII: s.d.Plain()})
+}
+
+// Prompt is the label of the BBS prompt.
+func (s *settings) Prompt() string { return i18n.T("bbs.prompt.settings") }
+
+// Commands are the BBS commands: a number selects a row, Enter and > give
+// the next value and < gives the previous value.
+func (s *settings) Commands() []ui.Command {
+	return []ui.Command{
+		{Name: "#", Label: i18n.T("bbs.settings.pick"), Run: s.pick},
+		{Name: "", Label: i18n.T("bbs.settings.change"), Run: func(string) tea.Cmd { return s.change(1) }},
+		{Name: "<", Label: i18n.T("bbs.settings.prev"), Run: func(string) tea.Cmd { return s.change(-1) }},
+		{Name: ">", Label: i18n.T("bbs.settings.next"), Run: func(string) tea.Cmd { return s.change(1) }},
+		{Name: "V", Label: i18n.T("bbs.global.back")},
+		{Name: "?", Label: i18n.T("bbs.global.help")},
+	}
+}
+
+// pick selects the row with the number arg.
+func (s *settings) pick(arg string) tea.Cmd {
+	n, err := strconv.Atoi(arg)
+	if err != nil || n < 1 || n > settingsRows {
+		return ui.Toast(i18n.T("bbs.unknown"), ui.ToastError)
+	}
+	s.list.Select(n - 1)
+	return nil
+}
+
+// bbsView shows the settings in an ASCII table with a number for each row.
+func (s *settings) bbsView(width int) string {
+	st := s.d.Styles
+	labelW := 0
+	for r := range settingsRows {
+		labelW = max(labelW, ansi.StringWidth(settingLabel(r)))
+	}
+	t := ui.NewTable(width, ui.Column{Title: i18n.T("bbs.help.number"), Width: 2, Align: ui.AlignRight},
+		ui.Column{Title: i18n.T("bbs.settings.option"), Width: labelW}, ui.Column{Title: i18n.T("bbs.settings.value")})
+	t.Full(st.Subtitle.Render(s.Title())).Header()
+	for r := range settingsRows {
+		t.Row(ui.Num(r+1, settingsRows), settingLabel(r), "< "+s.value(r)+" >")
+		if r == s.list.Cursor() {
+			t.Select()
+		}
+	}
+	t.Wrap(i18n.T("core.settings.hint")).Wrap(i18n.T("prefetch.settings.note"))
+	return t.Render(st)
 }

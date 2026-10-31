@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -173,5 +174,34 @@ func TestPrefetchLevels(t *testing.T) {
 		if c.LightPrefetch() != tt.light || c.FullPrefetch() != tt.full {
 			t.Errorf("Prefetch %q: light %v full %v, want %v %v", tt.value, c.LightPrefetch(), c.FullPrefetch(), tt.light, tt.full)
 		}
+	}
+}
+
+func TestInterfaceSavesAsBBS(t *testing.T) {
+	dir := useTempDir(t)
+	if err := Save(Config{Interface: InterfaceBBS}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"interface": "bbs"`) {
+		t.Errorf("config.json = %s, want the interface key", data)
+	}
+	got, _ := Load()
+	if !got.BBS() {
+		t.Errorf("Load() = %+v, want the BBS interface", got)
+	}
+	if (Config{}).BBS() || (Config{Interface: "other"}).BBS() {
+		t.Error("only the value bbs selects the BBS interface")
+	}
+}
+
+func TestLocalesDirIsInsideDir(t *testing.T) {
+	dir := useTempDir(t)
+	got, err := LocalesDir()
+	if err != nil || got != filepath.Join(dir, "locales") {
+		t.Errorf("LocalesDir() = %q, %v, want %q", got, err, filepath.Join(dir, "locales"))
 	}
 }

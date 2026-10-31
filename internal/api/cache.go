@@ -5,6 +5,7 @@ import "sync"
 // Cache keys. Keys with a parameter add it after a colon.
 const (
 	keySite          = "site"
+	keyStats         = "stats"
 	keyNodes         = "nodes"
 	keyReactionTypes = "reactionTypes"
 	keyPalette       = "palette:"

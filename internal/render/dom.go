@@ -17,6 +17,8 @@ type rewriter struct {
 	links []Link
 	atts  map[int]Attachment
 	shown map[int]bool
+	// bbs puts the quote authors on the blockquote for PostBBS.
+	bbs bool
 }
 
 func newRewriter(base *url.URL, attachments []Attachment) *rewriter {
@@ -168,8 +170,23 @@ func (w *rewriter) quoteAuthor(n *html.Node) {
 		n.Parent.RemoveChild(n)
 		return
 	}
+	if q := quoteOf(n); w.bbs && q != nil {
+		q.Attr = append(q.Attr, html.Attribute{Key: authorAttr, Val: author})
+		n.Parent.RemoveChild(n)
+		return
+	}
 	line := i18n.Tf("render.quoteAuthor", map[string]any{"Author": author})
 	replace(n, block(atom.P, block(atom.Strong, text(line))))
+}
+
+// quoteOf returns the nearest blockquote that holds n, or nil.
+func quoteOf(n *html.Node) *html.Node {
+	for p := n.Parent; p != nil; p = p.Parent {
+		if p.DataAtom == atom.Blockquote {
+			return p
+		}
+	}
+	return nil
 }
 
 // abs returns the absolute form of raw. It returns "" for a URL that the

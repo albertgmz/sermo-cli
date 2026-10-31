@@ -66,6 +66,17 @@ func newFakeSermo(t *testing.T) *fakeSermo {
 		}
 		writeJSON(w, 200, map[string]any{"nodeIds": []int{}})
 	})
+	mux.HandleFunc("GET /api/v1/online", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, 200, map[string]any{"items": []any{}, "page": 1, "perPage": 25, "total": 37})
+	})
+	mux.HandleFunc("GET /api/v1/site/stats", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, 200, map[string]any{"threads": 10, "posts": 200, "members": 4182, "latestMember": nil})
+	})
+	mux.HandleFunc("GET /api/v1/users/7", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, 200, map[string]any{"id": 7, "username": "albert", "groupTitle": "Miembro",
+			"displayGroup": map[string]any{"id": 3, "title": "Veteranos", "userTitle": "Veterano", "badge": ""},
+			"createdAt":    "2024-01-02T03:04:05Z", "postCount": 10, "reactionScore": 2})
+	})
 	mux.HandleFunc("POST /api/auth/device/code", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{
 			"device_code": "dev-1", "user_code": "WXYZ-1234",

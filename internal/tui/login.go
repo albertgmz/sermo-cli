@@ -207,6 +207,9 @@ func (l *login) address() string {
 }
 
 func (l *login) View(width, height int) string {
+	if l.d.BBS() {
+		return l.bbsView(width)
+	}
 	s := l.d.Styles
 	w := min(width, 72)
 	var body []string
@@ -261,4 +264,66 @@ func hints(s ui.Styles, pairs [][2]string) string {
 		parts[i] = s.Key.Render("["+p[0]+"]") + " " + s.Text.Render(i18n.T(p[1]))
 	}
 	return strings.Join(parts, "   ")
+}
+
+// Prompt is the label of the BBS prompt.
+func (l *login) Prompt() string { return i18n.T("bbs.prompt.login") }
+
+// Commands are the BBS hints of the login. The keys are the same as in the
+// modern view. While the login runs, the screen takes the keys itself.
+func (l *login) Commands() []ui.Command {
+	switch l.state {
+	case loginRequesting:
+		return []ui.Command{{Label: i18n.T("bbs.login.cancel")}}
+	case loginWaiting:
+		return []ui.Command{
+			{Name: "O", Label: i18n.T("bbs.login.open")},
+			{Name: "C", Label: i18n.T("bbs.login.copy")},
+			{Label: i18n.T("bbs.login.cancel")},
+		}
+	case loginFailed:
+		return []ui.Command{{Name: "", Label: i18n.T("bbs.login.retry"), Run: func(string) tea.Cmd { return l.start() }},
+			{Name: "V", Label: i18n.T("bbs.global.back")}}
+	}
+	return []ui.Command{{Name: "", Label: i18n.T("bbs.login.start"), Run: func(string) tea.Cmd { return l.start() }},
+		{Name: "V", Label: i18n.T("bbs.login.guest")}}
+}
+
+// bbsView shows the device login as lines of a terminal session.
+func (l *login) bbsView(width int) string {
+	s := l.d.Styles
+	mark := s.Accent.Render(">> ")
+	ok := " " + s.Success.Render(i18n.T("bbs.ok"))
+	out := []string{"", "  " + s.Subtitle.Render(strings.ToUpper(i18n.T("core.login.title"))), ""}
+	if l.reason != "" && l.state == loginOffer {
+		out = append(out, "  "+mark+s.Warning.Render(l.reason), "")
+	}
+	switch l.state {
+	case loginOffer:
+		for _, line := range strings.Split(lipgloss.Wrap(i18n.T("bbs.login.offer"), max(width-7, 10), " "), "\n") {
+			out = append(out, "  "+mark+s.Text.Render(line))
+		}
+	case loginRequesting:
+		out = append(out, "  "+mark+s.Text.Render(i18n.T("bbs.login.requesting")+" ..."))
+	case loginWaiting:
+		out = append(out, l.bbsWaiting(width, mark, ok)...)
+	case loginFailed:
+		out = append(out, "  "+mark+s.Error.Render(l.err))
+	}
+	return strings.Join(out, "\n")
+}
+
+func (l *login) bbsWaiting(width int, mark, ok string) []string {
+	s := l.d.Styles
+	out := []string{
+		"  " + mark + s.Text.Render(i18n.T("bbs.login.requesting")+" ...") + ok,
+		"  " + mark + s.Text.Render(i18n.T("bbs.login.address")),
+		"     " + s.Accent.Render(l.address()),
+		"  " + mark + s.Text.Render(i18n.T("bbs.login.code")),
+	}
+	for _, line := range banner.Lines(l.code.UserCode, width-6) {
+		out = append(out, "     "+s.Accent.Render(line))
+	}
+	return append(out, "     "+s.Key.Render(l.code.UserCode), "",
+		"  "+mark+s.Text.Render(i18n.T("bbs.login.waiting")+" ..."))
 }

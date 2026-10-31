@@ -72,6 +72,9 @@ func newModel(ctx context.Context, d *ui.Deps, opts Options) *model {
 	if d.ThemesDir == "" {
 		d.ThemesDir, _ = config.ThemesDir()
 	}
+	if d.LocalesDir == "" {
+		d.LocalesDir, _ = config.LocalesDir()
+	}
 	d.SetTheme(d.Themes.ByID(d.Config.Theme))
 	d.Glamour = glamourStyle(d, true)
 	m := &model{
@@ -82,6 +85,7 @@ func newModel(ctx context.Context, d *ui.Deps, opts Options) *model {
 		site:  hostOf(d.Server),
 		slide: newToastSlide(),
 		stack: []ui.Screen{forum.NewNodes(d)},
+		bbsOn: d.BBS(),
 	}
 	if opts.Start == StartSplash {
 		m.splash = newSplash(d, rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 1)))

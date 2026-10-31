@@ -45,6 +45,7 @@ type Client struct {
 	now    func() time.Time
 	pages  pageCache
 	queue  queue
+	cards  cards
 }
 
 // New returns a Client for o.Server.

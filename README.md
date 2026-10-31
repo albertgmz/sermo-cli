@@ -240,6 +240,27 @@ If a custom theme has the ID of a built-in theme, the custom theme replaces the 
 
 `sermo` reads the folder when it starts. If a file has a problem, `sermo` does not use that file, but it uses the other files. A message at the bottom of the screen shows the name of each bad file and the problem.
 
+## Translations
+
+The client has Spanish and English texts. You can change a text, or add a language.
+
+1. Write the files of a language to the translations folder:
+
+   ```sh
+   sermo locales export pt
+   ```
+
+   Without a language code, the command uses the current language. For a new language, the files have the Spanish texts. The command does not replace a file that is in the folder.
+2. Change the texts in the files. Do not change the IDs or the template fields, for example `{{.Name}}`.
+3. Start `sermo` again.
+
+The translations folder is `locales` in the configuration directory. Each language has a folder with the language code as its name, for example `pt` or `pt-BR`. The files have the format of the built-in catalogs. Each file is a JSON object: each key is an ID and each value is a text. A plural text is an object with the keys `one` and `other`.
+
+- A text in your file replaces the built-in text with the same ID. The other texts do not change.
+- A folder for a new language adds the language to the language row of the settings screen.
+- If a language does not have a text, the client shows the Spanish text.
+- If a file is not correct, the client does not use it. One message shows the names of these files. A file must not be larger than 1 MiB.
+
 ## Screens
 
 These descriptions tell what you see on the screen.
@@ -268,7 +289,8 @@ The configuration file is `config.json` in the configuration directory.
 | `theme` | The theme ID: `habana-neon`, `ambar-crt`, `fosforo-verde`, `malecon` or the ID of a custom theme. Empty means the default theme. |
 | `effect` | The effect name. Empty means the effect of the theme. If the theme sets no effect, empty means a random effect. |
 | `reducedMotion` | `true` stops the animations. |
-| `locale` | `es` or `en`. Empty means `es`. |
+| `locale` | `es`, `en` or the code of a language in the translations folder. Empty means `es`. Refer to [Translations](#translations). |
+| `interface` | `bbs` selects the BBS interface. Empty means the modern interface. |
 | `prefetch` | `off`, `light` or `full`. Empty means `off`. Refer to [Data usage](#data-usage). |
 
 The settings screen writes this file. You can also edit it.

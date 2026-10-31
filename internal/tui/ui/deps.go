@@ -47,12 +47,25 @@ type Deps struct {
 	Themes theme.Set
 	// ThemesDir is the directory of the user theme files.
 	ThemesDir string
+	// LocalesDir is the directory of the user translation files.
+	LocalesDir string
 }
 
 // Animate reports whether the views can animate. It is false with
-// --no-anim or with reduced motion.
+// --no-anim, with reduced motion or in the BBS interface.
 func (d *Deps) Animate() bool {
+	return d.Motion() && !d.BBS()
+}
+
+// Motion reports whether the user allows motion. It is false with
+// --no-anim or with reduced motion. The BBS splash uses it for its text.
+func (d *Deps) Motion() bool {
 	return !d.NoAnim && (d.Config == nil || !d.Config.ReducedMotion)
+}
+
+// BBS reports whether the config selects the BBS interface.
+func (d *Deps) BBS() bool {
+	return d.Config != nil && d.Config.BBS()
 }
 
 // Phase returns the color phase for animated highlights. It is 0 when the

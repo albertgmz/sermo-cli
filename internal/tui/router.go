@@ -62,7 +62,7 @@ func (m *model) hotkey(k string) tea.Cmd {
 		return m.push(social.NewSearch(m.d))
 	case "?":
 		if _, ok := m.top().(*helpScreen); !ok {
-			return m.push(newHelp(m.d, m.top().Keys()))
+			return m.push(newHelp(m.d, m.top().Keys(), m.screenCommands()))
 		}
 	case "q":
 		if len(m.stack) == 1 {
@@ -79,7 +79,7 @@ func (m *model) home() tea.Cmd {
 		return nil
 	}
 	m.stack = m.stack[:1]
-	return m.forward(ui.ResumedMsg{})
+	return tea.Batch(m.forward(ui.ResumedMsg{}), m.loadOnline())
 }
 
 // members shows the screen of mk for a member. A guest gets the sign-in
@@ -120,5 +120,8 @@ func (m *model) pop() tea.Cmd {
 		return nil
 	}
 	m.stack = m.stack[:len(m.stack)-1]
+	if len(m.stack) == 1 {
+		return tea.Batch(m.forward(ui.ResumedMsg{}), m.loadOnline())
+	}
 	return m.forward(ui.ResumedMsg{})
 }

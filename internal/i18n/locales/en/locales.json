@@ -1,0 +1,16 @@
+{
+  "locales.loadFailed": {
+    "one": "Could not use {{.Count}} translation file: {{.Files}}",
+    "other": "Could not use {{.Count}} translation files: {{.Files}}"
+  },
+  "locales.err.read": "cannot read it",
+  "locales.err.syntax": "not a valid catalog",
+  "locales.err.language": "the folder name is not a language code",
+  "cli.locales.short": "Manage the translation files",
+  "cli.locales.export.short": "Write the texts of a language to the translations folder",
+  "cli.locales.export.written": "Written: {{.File}}",
+  "cli.locales.export.skipped": "Already there, not changed: {{.File}}",
+  "cli.locales.export.done": "Edit the files and open sermo again. Missing texts show in Spanish.",
+  "cli.locales.export.badLanguage": "{{.Lang}} is not a language code. Use for example pt or pt-BR.",
+  "cli.locales.export.failed": "Could not write the files: {{.Error}}"
+}

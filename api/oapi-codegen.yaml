@@ -12,6 +12,8 @@ output-options:
     - auth.me
     - auth.counters
     - site.get
+    - site.stats
+    - online.list
     - paletteColors.list
     - nodes.list
     - nodes.get

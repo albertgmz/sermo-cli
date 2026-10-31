@@ -29,7 +29,7 @@ func IsMember(a gen.ContentAuthor) bool {
 
 func member(a gen.ContentAuthor) (gen.MemberAuthor, bool) {
 	m, err := a.AsMemberAuthor()
-	if err != nil || m.Kind != gen.Member {
+	if err != nil || m.Kind != gen.MemberAuthorKindMember {
 		return gen.MemberAuthor{}, false
 	}
 	return m, true

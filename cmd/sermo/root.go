@@ -44,7 +44,7 @@ func newRootCmd(e *env) *cobra.Command {
 		SilenceUsage:      true,
 		SilenceErrors:     true,
 		CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
-		PersistentPreRunE: func(*cobra.Command, []string) error { return c.prepare() },
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error { return c.prepare(cmd) },
 		RunE:              c.runTUI,
 	}
 	f := root.PersistentFlags()
@@ -56,12 +56,18 @@ func newRootCmd(e *env) *cobra.Command {
 		&cobra.Command{Use: "logout", Short: i18n.T("cli.logout.short"), Args: cobra.NoArgs, RunE: c.logout},
 		&cobra.Command{Use: "version", Short: i18n.T("cli.version.short"), Args: cobra.NoArgs, RunE: c.version},
 		&cobra.Command{Use: "update", Short: i18n.T("cli.update.short"), Args: cobra.NoArgs, RunE: c.update},
+		c.localesCmd(),
 	)
 	return root
 }
 
 // prepare reads the config file, sets the language and resolves the server.
-func (c *cli) prepare() error {
+// A subcommand also loads the user translation files first. The full screen
+// client loads them itself in the background.
+func (c *cli) prepare(cmd *cobra.Command) error {
+	if cmd.HasParent() {
+		loadUserLocales(cmd.ErrOrStderr())
+	}
 	cfg, err := config.Load()
 	if err != nil {
 		return errors.New(i18n.Tf("cli.config.failed", map[string]any{"Error": err}))

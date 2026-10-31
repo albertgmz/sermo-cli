@@ -16,7 +16,7 @@ import (
 // pollInterval is the time between two counter requests.
 const pollInterval = 60 * time.Second
 
-type siteMsg struct{ name string }
+type siteMsg struct{ name, description string }
 
 type meMsg struct {
 	me      *api.Me
@@ -39,7 +39,7 @@ type clockMsg struct{}
 func (m *model) updateSession(msg tea.Msg) (tea.Cmd, bool) {
 	switch msg := msg.(type) {
 	case siteMsg:
-		m.site = msg.name
+		m.site, m.siteDesc = msg.name, msg.description
 		return nil, true
 	case meMsg:
 		return m.gotMe(msg), true
@@ -67,7 +67,7 @@ func (m *model) loadSite() tea.Cmd {
 		if err != nil || site.Name == "" {
 			return nil
 		}
-		return siteMsg{name: site.Name}
+		return siteMsg{name: site.Name, description: site.Description}
 	}
 }
 
@@ -123,9 +123,9 @@ func (m *model) gotMe(msg meMsg) tea.Cmd {
 	}
 	m.d.Me = msg.me.User
 	if msg.welcome {
-		return ui.Toast(i18n.Tf("core.toast.welcome", map[string]any{"Name": m.d.Me.Username}), ui.ToastSuccess)
+		return tea.Batch(m.loadGroup(), ui.Toast(i18n.Tf("core.toast.welcome", map[string]any{"Name": m.d.Me.Username}), ui.ToastSuccess))
 	}
-	return nil
+	return m.loadGroup()
 }
 
 func (m *model) gotCounters(msg countersMsg) tea.Cmd {
@@ -215,6 +215,7 @@ func (m *model) signIn(c auth.Credential) error {
 	}
 	m.d.API, m.d.Cred, m.d.Me = client, c, nil
 	m.counters, m.haveCounters = api.Counters{}, false
+	m.group = ""
 	m.pollGen++
 	return nil
 }

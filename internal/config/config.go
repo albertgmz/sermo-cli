@@ -24,7 +24,14 @@ type Config struct {
 	ReducedMotion bool   `json:"reducedMotion,omitempty"` // true stops animations
 	Locale        string `json:"locale,omitempty"`        // "es" or "en"; "" means "es"
 	Prefetch      string `json:"prefetch,omitempty"`      // a Prefetch value; "" means PrefetchOff
+	Interface     string `json:"interface,omitempty"`     // InterfaceBBS or "" for the modern interface
 }
+
+// InterfaceBBS is the value of Config.Interface for the BBS interface.
+const InterfaceBBS = "bbs"
+
+// BBS reports whether the setting selects the BBS interface.
+func (c Config) BBS() bool { return c.Interface == InterfaceBBS }
 
 // The values of Config.Prefetch. PrefetchLight gets the next page of a list in the background.
 // PrefetchFull also gets the first thread page of the unread forums.
@@ -60,6 +67,16 @@ func ThemesDir() (string, error) {
 		return "", err
 	}
 	return filepath.Join(dir, "themes"), nil
+}
+
+// LocalesDir returns the directory of the user translation files: Dir()/locales.
+// It holds one directory for each language, for example locales/pt/core.json.
+func LocalesDir() (string, error) {
+	dir, err := Dir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "locales"), nil
 }
 
 // Load reads config.json. A missing file gives a zero Config and no error.
