@@ -327,3 +327,126 @@ func assertSlept(t *testing.T, rec *sleepRecorder, want ...time.Duration) {
 		}
 	}
 }
+
+// seqServer answers each request with the next handler in handlers.
+func seqServer(t *testing.T, handlers ...http.HandlerFunc) *httptest.Server {
+	t.Helper()
+	var mu sync.Mutex
+	n := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		i := n
+		n++
+		mu.Unlock()
+		if i >= len(handlers) {
+			t.Errorf("unexpected request %d", i+1)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		handlers[i](w, r)
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func reply(status int, body string, header ...string) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		for i := 0; i+1 < len(header); i += 2 {
+			w.Header().Set(header[i], header[i+1])
+		}
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}
+}
+
+const (
+	tooMany  = `{"message":"Too many requests. Please try again later."}`
+	tokenOK  = `{"access_token":"tok-1","token_type":"Bearer","expires_in":7776000}`
+	bannedJS = `{"message":"This account is banned.","code":"ACCOUNT_BANNED"}`
+)
+
+func TestPollTokenInvalidGrant(t *testing.T) {
+	srv := seqServer(t, reply(http.StatusBadRequest, `{"error":"invalid_grant","error_description":"Invalid device code"}`))
+	_, err := newDevice(srv.URL, &sleepRecorder{}).PollToken(context.Background(), testCode())
+	if !errors.Is(err, ErrInvalidGrant) {
+		t.Fatalf("PollToken() error = %v, want ErrInvalidGrant", err)
+	}
+}
+
+func TestPollTokenBanned(t *testing.T) {
+	srv := seqServer(t, reply(http.StatusForbidden, bannedJS))
+	_, err := newDevice(srv.URL, &sleepRecorder{}).PollToken(context.Background(), testCode())
+	if !errors.Is(err, ErrBanned) {
+		t.Fatalf("PollToken() error = %v, want ErrBanned", err)
+	}
+}
+
+func TestPollTokenRateLimitedWaits(t *testing.T) {
+	tests := []struct {
+		name   string
+		header []string
+		want   time.Duration
+	}{
+		{"X-Retry-After", []string{"X-Retry-After", "12", "Retry-After", "99"}, 12 * time.Second},
+		{"Retry-After", []string{"Retry-After", "8"}, 8 * time.Second},
+		{"no header", nil, 10 * time.Second},
+		{"bad header", []string{"X-Retry-After", "soon"}, 10 * time.Second},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := seqServer(t,
+				reply(http.StatusTooManyRequests, tooMany, tt.header...),
+				reply(http.StatusBadRequest, pending),
+				reply(http.StatusOK, tokenOK),
+			)
+			rec := &sleepRecorder{}
+			before := time.Now()
+			tok, err := newDevice(srv.URL, rec).PollToken(context.Background(), testCode())
+			if err != nil {
+				t.Fatalf("PollToken() error = %v", err)
+			}
+			assertSlept(t, rec, 5*time.Second, tt.want, 5*time.Second)
+			if want := before.Add(90 * 24 * time.Hour); tok.ExpiresAt.Before(want) {
+				t.Fatalf("ExpiresAt = %v, want 90 days from now", tok.ExpiresAt)
+			}
+		})
+	}
+}
+
+func TestPollTokenRateLimitedPastDeadline(t *testing.T) {
+	srv := seqServer(t, reply(http.StatusTooManyRequests, tooMany, "X-Retry-After", "1"))
+	dc := testCode()
+	dc.ExpiresIn = 50 * time.Millisecond
+	sleep := func(ctx context.Context, _ time.Duration) error {
+		time.Sleep(30 * time.Millisecond)
+		return ctx.Err()
+	}
+	d := &Device{Server: srv.URL, HTTP: http.DefaultClient, UserAgent: "test-agent", Sleep: sleep}
+	if _, err := d.PollToken(context.Background(), dc); !errors.Is(err, ErrExpired) {
+		t.Fatalf("PollToken() error = %v, want ErrExpired", err)
+	}
+}
+
+func TestRequestCodeRateLimited(t *testing.T) {
+	tests := []struct {
+		name   string
+		header []string
+		want   time.Duration
+	}{
+		{"X-Retry-After", []string{"X-Retry-After", "30"}, 30 * time.Second},
+		{"no header", nil, 10 * time.Second},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := seqServer(t, reply(http.StatusTooManyRequests, tooMany, tt.header...))
+			_, err := newDevice(srv.URL, &sleepRecorder{}).RequestCode(context.Background())
+			var rl *RateLimitError
+			if !errors.As(err, &rl) {
+				t.Fatalf("RequestCode() error = %v, want *RateLimitError", err)
+			}
+			if rl.Wait != tt.want {
+				t.Fatalf("Wait = %v, want %v", rl.Wait, tt.want)
+			}
+		})
+	}
+}

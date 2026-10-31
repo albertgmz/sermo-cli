@@ -12,7 +12,7 @@ import (
 func signOutServer(t *testing.T, status int) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/api/auth/sign-out" {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/me/device-login/sign-out" {
 			t.Errorf("request = %s %s", r.Method, r.URL.Path)
 		}
 		if got := r.Header.Get("Authorization"); got != "Bearer tok-1" {
@@ -23,6 +23,9 @@ func signOutServer(t *testing.T, status int) *httptest.Server {
 			t.Errorf("body = %q, want {}", b)
 		}
 		w.WriteHeader(status)
+		if status == http.StatusOK {
+			_, _ = w.Write([]byte(`{"ok":true}`))
+		}
 	}))
 	t.Cleanup(srv.Close)
 	return srv
@@ -49,6 +52,14 @@ func TestSignOutUnsupported(t *testing.T) {
 
 func TestSignOutFailure(t *testing.T) {
 	srv := signOutServer(t, http.StatusInternalServerError)
+	err := SignOut(context.Background(), http.DefaultClient, srv.URL, "test-agent", "tok-1")
+	if err == nil || errors.Is(err, ErrSignOutUnsupported) {
+		t.Fatalf("SignOut() error = %v, want a generic error", err)
+	}
+}
+
+func TestSignOutNotDeviceLogin(t *testing.T) {
+	srv := signOutServer(t, http.StatusForbidden)
 	err := SignOut(context.Background(), http.DefaultClient, srv.URL, "test-agent", "tok-1")
 	if err == nil || errors.Is(err, ErrSignOutUnsupported) {
 		t.Fatalf("SignOut() error = %v, want a generic error", err)

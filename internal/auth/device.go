@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -26,7 +27,22 @@ var (
 	ErrExpired = errors.New("auth: device code expired")
 	// ErrDenied tells that the user refused the device login.
 	ErrDenied = errors.New("auth: device login denied")
+	// ErrInvalidGrant tells that the server does not accept the device code any more.
+	// The code is unknown, the client used it before, or it belongs to a different client.
+	ErrInvalidGrant = errors.New("auth: device code is not valid")
+	// ErrBanned tells that the account is banned.
+	ErrBanned = errors.New("auth: account is banned")
 )
+
+// RateLimitError tells that the server refused a request because of its rate limit.
+// Wait is the time to wait before the next request.
+type RateLimitError struct {
+	Wait time.Duration
+}
+
+func (e *RateLimitError) Error() string {
+	return fmt.Sprintf("auth: rate limited, wait %s", e.Wait)
+}
 
 // DeviceCode is the reply to a device code request.
 type DeviceCode struct {
@@ -64,6 +80,9 @@ func (d *Device) RequestCode(ctx context.Context) (DeviceCode, error) {
 	if resp.StatusCode == http.StatusNotFound {
 		return DeviceCode{}, ErrUnsupported
 	}
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return DeviceCode{}, &RateLimitError{Wait: retryAfter(resp.Header, defaultInterval+slowDownStep)}
+	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return DeviceCode{}, fmt.Errorf("auth: device code request: HTTP %d", resp.StatusCode)
 	}
@@ -94,38 +113,65 @@ func (d *Device) RequestCode(ctx context.Context) (DeviceCode, error) {
 
 // PollToken waits for the user to approve dc and returns the access token.
 // It returns ErrExpired when the server tells so or when dc.ExpiresIn has passed.
+// When the server refuses a poll because of its rate limit, PollToken waits and polls again.
 func (d *Device) PollToken(ctx context.Context, dc DeviceCode) (Token, error) {
-	interval := dc.Interval
-	if interval <= 0 {
-		interval = defaultInterval
+	p := pollState{interval: dc.Interval}
+	if p.interval <= 0 {
+		p.interval = defaultInterval
 	}
+	p.next = p.interval
 	var deadline time.Time
 	if dc.ExpiresIn > 0 {
 		deadline = time.Now().Add(dc.ExpiresIn)
 	}
 	for {
-		if err := d.wait(ctx, interval, deadline); err != nil {
+		if err := d.wait(ctx, p.next, deadline); err != nil {
 			return Token{}, err
 		}
 		r, err := d.requestToken(ctx, dc.DeviceCode)
 		if err != nil {
 			return Token{}, err
 		}
-		if r.Error == "" {
-			return r.token(time.Now()), nil
-		}
-		if r.Error == "slow_down" {
-			interval += slowDownStep
-			continue
-		}
-		if err := pollError(r); err != nil {
+		done, err := p.handle(r)
+		if err != nil {
 			return Token{}, err
+		}
+		if done {
+			return r.token(time.Now()), nil
 		}
 	}
 }
 
+// pollState keeps the poll interval and the time to wait before the next poll.
+type pollState struct {
+	interval, next time.Duration
+}
+
+// handle reads one token response. It returns true when r holds the token.
+func (p *pollState) handle(r tokenResponse) (bool, error) {
+	p.next = p.interval
+	switch {
+	case r.limited:
+		p.next = r.retryAfter
+		if p.next <= 0 {
+			p.next = p.interval + slowDownStep
+		}
+		return false, nil
+	case r.Error == "slow_down":
+		p.interval += slowDownStep
+		p.next = p.interval
+		return false, nil
+	case r.Error == "" && r.Code == "":
+		return true, nil
+	}
+	return false, pollError(r)
+}
+
 // pollError returns nil when the client must poll again.
 func pollError(r tokenResponse) error {
+	if r.Code == "ACCOUNT_BANNED" {
+		return ErrBanned
+	}
 	switch r.Error {
 	case "authorization_pending":
 		return nil
@@ -133,8 +179,10 @@ func pollError(r tokenResponse) error {
 		return ErrExpired
 	case "access_denied":
 		return ErrDenied
+	case "invalid_grant":
+		return fmt.Errorf("%w: %s: %s", ErrInvalidGrant, r.Error, r.ErrorDescription)
 	default:
-		return fmt.Errorf("auth: device token: %s: %s", r.Error, r.ErrorDescription)
+		return fmt.Errorf("auth: device token: %s%s: %s", r.Error, r.Code, r.ErrorDescription)
 	}
 }
 
@@ -143,6 +191,12 @@ type tokenResponse struct {
 	ExpiresIn        int64  `json:"expires_in"`
 	Error            string `json:"error"`
 	ErrorDescription string `json:"error_description"`
+	// Code is the error code of a Better Auth error body, for example ACCOUNT_BANNED.
+	Code string `json:"code"`
+	// limited is true when the server refused the poll because of its rate limit.
+	// retryAfter is the wait that the server gave, or zero.
+	limited    bool
+	retryAfter time.Duration
 }
 
 func (r tokenResponse) token(now time.Time) Token {
@@ -164,16 +218,31 @@ func (d *Device) requestToken(ctx context.Context, deviceCode string) (tokenResp
 		return r, fmt.Errorf("auth: device token request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode == http.StatusTooManyRequests {
+		r.limited, r.retryAfter = true, retryAfter(resp.Header, 0)
+		return r, nil
+	}
 	if resp.StatusCode >= 500 {
 		return r, fmt.Errorf("auth: device token request: HTTP %d", resp.StatusCode)
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
 		return r, fmt.Errorf("auth: decode device token: %w", err)
 	}
-	if r.Error == "" && r.AccessToken == "" {
+	if r.Error == "" && r.Code == "" && r.AccessToken == "" {
 		return r, fmt.Errorf("auth: device token: HTTP %d without access token", resp.StatusCode)
 	}
 	return r, nil
+}
+
+// retryAfter returns the seconds in the X-Retry-After header, else in the Retry-After header.
+// It returns fallback when neither header holds a positive number of seconds.
+func retryAfter(h http.Header, fallback time.Duration) time.Duration {
+	for _, name := range []string{"X-Retry-After", "Retry-After"} {
+		if n, err := strconv.Atoi(h.Get(name)); err == nil && n > 0 {
+			return time.Duration(n) * time.Second
+		}
+	}
+	return fallback
 }
 
 // wait sleeps for interval. It returns ErrExpired when a non-zero deadline has passed.

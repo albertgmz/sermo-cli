@@ -10,10 +10,11 @@ import (
 // ErrSignOutUnsupported tells that the server does not have the sign-out endpoint.
 var ErrSignOutUnsupported = errors.New("auth: server does not support sign-out")
 
-// SignOut revokes token on server. A nil hc uses http.DefaultClient.
-// A 401 reply is a success, because the server does not accept the token any more.
+// SignOut ends the device login of token on server. It ends only this login. A nil hc uses http.DefaultClient.
+// A 401 reply is a success, because the login ended before.
+// A 403 reply tells that token is not a device login. SignOut then returns an error.
 func SignOut(ctx context.Context, hc *http.Client, server, userAgent, token string) error {
-	resp, err := postJSON(ctx, hc, server+"/api/auth/sign-out", userAgent, token, struct{}{})
+	resp, err := postJSON(ctx, hc, server+"/api/v1/me/device-login/sign-out", userAgent, token, struct{}{})
 	if err != nil {
 		return fmt.Errorf("auth: sign-out request: %w", err)
 	}
@@ -23,6 +24,8 @@ func SignOut(ctx context.Context, hc *http.Client, server, userAgent, token stri
 		return nil
 	case resp.StatusCode == http.StatusNotFound:
 		return ErrSignOutUnsupported
+	case resp.StatusCode == http.StatusForbidden:
+		return errors.New("auth: sign-out request: the token is not a device login")
 	default:
 		return fmt.Errorf("auth: sign-out request: HTTP %d", resp.StatusCode)
 	}

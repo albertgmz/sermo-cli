@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"time"
 
@@ -101,16 +102,28 @@ func loginFailed(w io.Writer, err error) error {
 	return errReported
 }
 
+// loginErrorIDs maps the login errors that need no data to their message IDs.
+var loginErrorIDs = []struct {
+	err error
+	id  string
+}{
+	{auth.ErrUnsupported, "cli.login.unsupported"},
+	{auth.ErrExpired, "cli.login.expired"},
+	{auth.ErrDenied, "cli.login.denied"},
+	{auth.ErrInvalidGrant, "cli.login.invalidGrant"},
+	{auth.ErrBanned, "cli.login.banned"},
+	{context.Canceled, "cli.login.canceled"},
+}
+
 func loginErrorText(err error) string {
-	switch {
-	case errors.Is(err, auth.ErrUnsupported):
-		return i18n.T("cli.login.unsupported")
-	case errors.Is(err, auth.ErrExpired):
-		return i18n.T("cli.login.expired")
-	case errors.Is(err, auth.ErrDenied):
-		return i18n.T("cli.login.denied")
-	case errors.Is(err, context.Canceled):
-		return i18n.T("cli.login.canceled")
+	for _, e := range loginErrorIDs {
+		if errors.Is(err, e.err) {
+			return i18n.T(e.id)
+		}
+	}
+	var rl *auth.RateLimitError
+	if errors.As(err, &rl) {
+		return i18n.Tf("cli.login.rateLimited", map[string]any{"Seconds": int(math.Ceil(rl.Wait.Seconds()))})
 	}
 	return i18n.Tf("cli.login.failed", map[string]any{"Error": ui.ErrorText(err)})
 }

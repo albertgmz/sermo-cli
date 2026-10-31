@@ -5,5 +5,7 @@
   "errors.rateLimited": "Too many requests. Wait {{.Seconds}} s and try again.",
   "errors.server": "The server has a problem now. Try again later.",
   "errors.network": "There is no connection to the server. Examine your internet connection.",
-  "errors.deviceUnsupported": "This server does not let you sign in from the terminal. Make an API key in your account and put it in the SERMO_API_KEY variable."
+  "errors.deviceUnsupported": "This server does not let you sign in from the terminal. Make an API key in your account and put it in the SERMO_API_KEY variable.",
+  "errors.banned": "Your account is suspended. The session of this device ended.",
+  "errors.acceptTerms": "The site has new rules. Accept them in the browser before you write."
 }

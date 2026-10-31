@@ -163,3 +163,67 @@ func TestLoginNotesAPIKey(t *testing.T) {
 		t.Fatalf("output has no API key note:\n%s", r.out)
 	}
 }
+
+func TestLoginInvalidGrant(t *testing.T) {
+	setup(t)
+	d := newDeviceServer(t, "invalid_grant")
+	r := run(t, testEnv(), "--server", d.srv.URL, "login")
+	if !errors.Is(r.runErr, errReported) {
+		t.Fatalf("err = %v, want errReported", r.runErr)
+	}
+	if !strings.Contains(r.err, i18n.T("cli.login.invalidGrant")) {
+		t.Fatalf("stderr has no invalid grant text:\n%s", r.err)
+	}
+}
+
+// codeServer answers the device code request with code and the token poll with poll.
+func codeServer(t *testing.T, code, poll http.HandlerFunc) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/auth/device/code", code)
+	mux.HandleFunc("POST /api/auth/device/token", poll)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestLoginBanned(t *testing.T) {
+	setup(t)
+	srv := codeServer(t,
+		func(w http.ResponseWriter, _ *http.Request) {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"device_code": "dev-1", "user_code": userCode, "verification_uri": "http://x/device",
+				"expires_in": 600, "interval": 1,
+			})
+		},
+		func(w http.ResponseWriter, _ *http.Request) {
+			writeJSON(w, http.StatusForbidden, map[string]any{"message": "This account is banned.", "code": "ACCOUNT_BANNED"})
+		})
+	r := run(t, testEnv(), "--server", srv.URL, "login")
+	if !errors.Is(r.runErr, errReported) {
+		t.Fatalf("err = %v, want errReported", r.runErr)
+	}
+	if !strings.Contains(r.err, i18n.T("cli.login.banned")) {
+		t.Fatalf("stderr has no banned text:\n%s", r.err)
+	}
+}
+
+func TestLoginRateLimitedTellsWait(t *testing.T) {
+	setup(t)
+	srv := codeServer(t,
+		func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("X-Retry-After", "42")
+			writeJSON(w, http.StatusTooManyRequests, map[string]any{"message": "Too many requests."})
+		},
+		func(w http.ResponseWriter, _ *http.Request) {
+			t.Error("token poll after a refused code request")
+		})
+	r := run(t, testEnv(), "--server", srv.URL, "login")
+	if !errors.Is(r.runErr, errReported) {
+		t.Fatalf("err = %v, want errReported", r.runErr)
+	}
+	want := i18n.Tf("cli.login.rateLimited", map[string]any{"Seconds": 42})
+	if !strings.Contains(r.err, want) || !strings.Contains(want, "42") {
+		t.Fatalf("stderr has no %q:\n%s", want, r.err)
+	}
+}
