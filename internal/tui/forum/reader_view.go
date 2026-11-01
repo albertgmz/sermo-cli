@@ -163,7 +163,7 @@ func (r *reader) View(width, height int) string {
 	case r.picker != nil:
 		return r.picker.view(r.d, width, height)
 	}
-	body := r.vp.View()
+	body := r.markBody(r.vp.View())
 	if len(r.posts) == 0 {
 		body = ui.Empty(r.d.Styles, i18n.T("forum.thread.empty"), width, max(height-3, 1))
 	}
@@ -195,7 +195,7 @@ func (r *reader) header(width int) string {
 
 func (r *reader) footer(width int) string {
 	st := r.d.Styles
-	out := st.Text.Render(i18n.Tf("forum.thread.page", map[string]any{"Page": r.page, "Pages": r.pages}))
+	out := r.d.Mark(r.zid+"page", st.Text.Render(i18n.Tf("forum.thread.page", map[string]any{"Page": r.page, "Pages": r.pages})))
 	if p := r.focusedPost(); p != nil {
 		out += st.Muted.Render("  #" + strconv.Itoa(p.Position+1))
 	}

@@ -374,8 +374,32 @@ func routeLineEditor(ed **lineEditor, msg tea.Msg) (tea.Cmd, bool) {
 	return cmd, true
 }
 
-// editorHint is the hint line while the line editor is open. The editor
-// takes all keys, so the hint has no command to run.
-func editorHint() []ui.Command {
-	return []ui.Command{{Name: "", Label: i18n.T("bbs.social.editor.hint")}}
+// editorHints are the hints while the line editor *ed is open. A click on
+// a hint runs its editor command like a typed command line. The line
+// under input does not change. The editor closes on /A.
+func editorHints(ed **lineEditor) []ui.Command {
+	run := func(name string) func(string) tea.Cmd {
+		return func(string) tea.Cmd {
+			e := *ed
+			if e == nil {
+				return nil
+			}
+			cmd := e.run(name, "")
+			if e.closed {
+				*ed = nil
+			}
+			return cmd
+		}
+	}
+	cmds := []ui.Command{
+		{Name: "/S", Label: i18n.T("bbs.social.editor.hintSend"), Run: run("S")},
+		{Name: "/A", Label: i18n.T("bbs.social.editor.hintAbort"), Run: run("A")},
+	}
+	if e := *ed; e != nil && e.quote != nil {
+		cmds = append(cmds, ui.Command{Name: "/C", Label: i18n.T("bbs.social.editor.hintQuote"), Run: run("C")})
+	}
+	return append(cmds,
+		ui.Command{Name: "/V", Label: i18n.T("bbs.social.editor.hintPreview"), Run: run("V")},
+		ui.Command{Name: "/?", Label: i18n.T("bbs.social.editor.hintHelp"), Run: run("?")},
+	)
 }

@@ -179,7 +179,7 @@ func (s *threadList) bbsView(width int) string {
 			t.Rule()
 		}
 		t.Row(threadMark(th), prefixLabel(th.Prefix)+th.Title, authorName(th.Author),
-			ui.Thousands(th.ReplyCount), listAgeLong(s.d.Now(), th.LastPost.PostedAt))
+			ui.Thousands(th.ReplyCount), listAgeLong(s.d.Now(), th.LastPost.PostedAt)).Zone(s.d, s.list.RowZone(k))
 		if k == s.list.Cursor() {
 			t.Select()
 		}
@@ -215,7 +215,7 @@ func (s *threadList) bbsCrumbs() string {
 // bbsRight is the right side of the path row: the prefix filter and the
 // page.
 func (s *threadList) bbsRight() string {
-	out := i18n.Tf("bbs.forum.page", map[string]any{"Page": s.page, "Pages": s.pages})
+	out := s.d.Mark(s.zid+"page", i18n.Tf("bbs.forum.page", map[string]any{"Page": s.page, "Pages": s.pages}))
 	for _, p := range s.prefixes {
 		if p.Id == s.prefixID && s.prefixID != 0 {
 			out = i18n.Tf("bbs.forum.filter.active", map[string]any{"Label": p.Label}) + "   " + out
@@ -254,14 +254,28 @@ func (s *threadList) prefixView(width int) string {
 	t := ui.NewTable(width, ui.Column{Title: i18n.T("bbs.forum.col.num"), Width: len(ui.Num(0, len(s.prefixes))), Align: ui.AlignRight},
 		ui.Column{Title: i18n.T("bbs.forum.filter.title")})
 	t.Full(listSpread(s.bbsCrumbs(), s.bbsRight(), width-4)).Header()
-	t.Row(ui.Num(0, len(s.prefixes)), i18n.T("bbs.forum.filter.all"))
+	t.Row(ui.Num(0, len(s.prefixes)), i18n.T("bbs.forum.filter.all")).Zone(s.d, s.prefixZone(0))
 	for i, p := range s.prefixes {
-		t.Row(ui.Num(i+1, len(s.prefixes)), "["+p.Label+"]")
+		t.Row(ui.Num(i+1, len(s.prefixes)), "["+p.Label+"]").Zone(s.d, s.prefixZone(i+1))
 		if p.Id == s.prefixID {
 			t.Select()
 		}
 	}
 	return t.Render(s.d.Styles)
+}
+
+// prefixZone is the zone ID of the row with the number n of the prefix
+// list.
+func (s *threadList) prefixZone(n int) string { return s.zid + "prefix." + strconv.Itoa(n) }
+
+// clickPrefix filters by the clicked prefix, like its number.
+func (s *threadList) clickPrefix(msg tea.MouseReleaseMsg) tea.Cmd {
+	for n := range len(s.prefixes) + 1 {
+		if s.d.Clicked(s.prefixZone(n), msg) {
+			return s.choosePrefix(strconv.Itoa(n))
+		}
+	}
+	return nil
 }
 
 // listAgeLong returns the time from t to now for the thread list, for

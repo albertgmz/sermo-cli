@@ -226,7 +226,7 @@ func (f frame) bottom(b *strings.Builder) {
 
 // Highlight returns text as a selected row of width columns: the highlight
 // gradient of t on the selection color. The phase moves the colors. Use the
-// same phase for a static highlight.
+// same phase for a static highlight. The zones of text stay in the result.
 func Highlight(t theme.Theme, text string, width int, phase float64) string {
 	if width <= 0 {
 		return ""
@@ -238,7 +238,7 @@ func Highlight(t theme.Theme, text string, width int, phase float64) string {
 	p.b.WriteString("\x1b[1m")
 	p.b.WriteString(t.Highlight.Text(plain, phase))
 	p.b.WriteString("\x1b[m")
-	return p.b.String()
+	return KeepZones(text, p.b.String())
 }
 
 func pingPong(x float64) float64 {

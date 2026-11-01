@@ -75,6 +75,7 @@ type composer struct {
 	// ed is the line editor of the BBS interface, or nil.
 	ed        *lineEditor
 	nodeTitle string
+	zid       string // the prefix of the zone IDs
 }
 
 type composeMetaMsg struct {
@@ -139,7 +140,7 @@ func newComposer(d *ui.Deps, mode composeMode, body string) *composer {
 	ta.Placeholder = i18n.T("forum.compose.bodyPlaceholder")
 	ta.SetValue(body)
 	setStyles(d, &ti, &ta)
-	c := &composer{d: d, mode: mode, title: ti, body: ta, initial: body, prefix: -1, pv: viewport.New()}
+	c := &composer{d: d, mode: mode, title: ti, body: ta, initial: body, prefix: -1, pv: viewport.New(), zid: ui.ZonePrefix()}
 	if d.BBS() {
 		c.ed = newLineEditor(body)
 		c.initial = c.text()
@@ -220,6 +221,10 @@ func (c *composer) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 		return c, c.sent(msg)
 	case tea.KeyPressMsg:
 		return c, c.key(msg)
+	case tea.MouseReleaseMsg:
+		if c.ed == nil {
+			return c, c.clickHint(msg)
+		}
 	default:
 		if c.ed != nil {
 			return c, c.edMsg(msg)
@@ -572,7 +577,7 @@ func (c *composer) status(width int) string {
 	if n >= maxBody {
 		countText = st.Error.Render(count)
 	}
-	hint := i18n.T("forum.compose.hint")
+	hint := c.markHints(i18n.T("forum.compose.hint"))
 	switch {
 	case c.sending:
 		hint = i18n.T("forum.compose.sending")

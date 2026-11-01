@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/colorprofile"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/albertgmz/sermo-cli/internal/api"
 	"github.com/albertgmz/sermo-cli/internal/api/gen"
@@ -49,6 +50,8 @@ type Deps struct {
 	ThemesDir string
 	// LocalesDir is the directory of the user translation files.
 	LocalesDir string
+	// Zones finds the clickable parts of the views. Nil means no clicks.
+	Zones *zone.Manager
 }
 
 // Animate reports whether the views can animate. It is false with

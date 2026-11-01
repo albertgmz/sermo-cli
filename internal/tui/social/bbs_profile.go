@@ -71,7 +71,7 @@ func (pr *profile) Prompt() string {
 // Commands are the BBS commands of the profile and of its open tab.
 func (pr *profile) Commands() []ui.Command {
 	if pr.posts.led != nil {
-		return editorHint()
+		return editorHints(&pr.posts.led)
 	}
 	if pr.p == nil {
 		return []ui.Command{back()}

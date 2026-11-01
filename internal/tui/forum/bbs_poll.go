@@ -81,7 +81,7 @@ func (s *pollScreen) answerRows(t *ui.Table, qi, row, barW int) int {
 		if a.Votes != nil {
 			result = asciiBar(*a.Votes, total, barW)
 		}
-		t.Row(ui.Num(row+1, len(s.answers)), mark+a.Text, result)
+		t.Row(ui.Num(row+1, len(s.answers)), mark+a.Text, result).Zone(s.d, s.list.RowZone(row))
 		if row == s.list.Cursor() {
 			t.Select()
 		}

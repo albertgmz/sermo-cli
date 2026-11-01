@@ -41,7 +41,9 @@ type votedMsg struct {
 }
 
 func newPoll(d *ui.Deps, threadID int) *pollScreen {
-	return &pollScreen{d: d, threadID: threadID, sp: ui.NewSpinner(d.Styles), loading: true, chosen: map[int]bool{}}
+	s := &pollScreen{d: d, threadID: threadID, sp: ui.NewSpinner(d.Styles), loading: true, chosen: map[int]bool{}}
+	s.list.SetZones(d, ui.ZonePrefix()+"row")
+	return s
 }
 
 func (s *pollScreen) Init() tea.Cmd       { return s.load() }
@@ -86,6 +88,11 @@ func (s *pollScreen) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 		return s, ui.Toast(i18n.T("forum.toast.voted"), ui.ToastSuccess)
 	case tea.KeyPressMsg:
 		return s, s.key(msg)
+	case tea.MouseReleaseMsg:
+		// A click on the selected answer marks it, like Space.
+		if s.poll != nil && len(s.answers) > 0 && s.list.Update(msg) {
+			return s, s.toggle()
+		}
 	}
 	return s, nil
 }
@@ -209,7 +216,7 @@ func (s *pollScreen) View(width, height int) string {
 			}
 		}
 		for ai := range q.Answers {
-			lines = append(lines, s.answerLine(qi, ai, row, total, width))
+			lines = append(lines, s.d.Mark(s.list.RowZone(row), s.answerLine(qi, ai, row, total, width)))
 			row++
 		}
 	}

@@ -56,6 +56,7 @@ type reader struct {
 	picker   *picker
 	pickKind int
 	pickIDs  []int
+	zid      string // the prefix of the zone IDs
 }
 
 type renderedBody struct {
@@ -105,6 +106,7 @@ func newReader(d *ui.Deps, threadID, postID, position int) *reader {
 		d: d, threadID: threadID, startPost: postID, startPos: position,
 		sp: ui.NewSpinner(d.Styles), loading: true, vp: vp, page: 1, pages: 1,
 		bookmarked: map[int]bool{}, spoilers: map[int]string{}, marked: map[int]bool{},
+		zid: ui.ZonePrefix(),
 	}
 }
 
@@ -245,6 +247,8 @@ func (r *reader) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 		return r, r.key(msg)
 	case tea.MouseWheelMsg:
 		r.scroll(msg)
+	case tea.MouseReleaseMsg:
+		return r, r.click(msg)
 	default:
 		return r, r.updateAction(msg)
 	}

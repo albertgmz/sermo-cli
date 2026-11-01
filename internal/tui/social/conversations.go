@@ -34,12 +34,14 @@ type conversations struct {
 	led   *lineEditor
 	pg    pager
 	w, h  int
+	zid   string // the prefix of the zone IDs
 }
 
 // NewConversations returns the conversation list of the viewer.
 func NewConversations(d *ui.Deps) ui.Screen {
-	c := &conversations{d: d, load: newLoader(d), page: 1, pages: 1}
+	c := &conversations{d: d, load: newLoader(d), page: 1, pages: 1, zid: ui.ZonePrefix()}
 	c.list.SetClock(d.Now)
+	c.list.SetZones(d, c.zid+"row")
 	return c
 }
 
@@ -97,8 +99,31 @@ func (c *conversations) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 		return c, c.key(msg)
 	case tea.MouseWheelMsg:
 		c.list.Update(msg)
+	case tea.MouseReleaseMsg:
+		return c, c.click(msg)
 	}
 	return c, nil
+}
+
+// click turns the page for a click on the page counter. A click on a row
+// selects it, or opens it when it is the selected row.
+func (c *conversations) click(msg tea.MouseReleaseMsg) tea.Cmd {
+	if c.load.loading || c.load.err != nil {
+		return nil
+	}
+	if page, ok := pageTurn(c.d, c.zid+"page", msg, c.page); ok {
+		return c.turn(page)
+	}
+	if c.d.BBS() {
+		if i, ok := c.pg.click(c.d, c.zid+"row", msg, len(c.items)); ok {
+			return ui.Push(NewConversation(c.d, c.items[i].Id))
+		}
+		return nil
+	}
+	if c.list.Update(msg) {
+		return ui.Push(NewConversation(c.d, c.items[c.list.Cursor()].Id))
+	}
+	return nil
 }
 
 func (c *conversations) resize(w, h int) {
@@ -203,7 +228,7 @@ func (c *conversations) View(width, height int) string {
 		return head + "\n" + ui.Empty(s, i18n.T("social.conv.empty"), width, height-1)
 	}
 	rows := c.list.View(s, c.d.Theme, width, c.d.Phase(), func(i, _ int) string { return c.row(c.items[i]) })
-	foot := s.Muted.Render(i18n.Tf("social.page", map[string]any{"Page": c.page, "Pages": c.pages}))
+	foot := c.d.Mark(c.zid+"page", s.Muted.Render(i18n.Tf("social.page", map[string]any{"Page": c.page, "Pages": c.pages})))
 	return head + "\n\n" + rows + "\n\n" + foot
 }
 

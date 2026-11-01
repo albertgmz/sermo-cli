@@ -76,7 +76,7 @@ func (n *notifications) bbsView(width, height int) string {
 		if !item.Read {
 			mark = s.Accent.Render("(*)")
 		}
-		t.Row(ui.Num(i-lo+1, hi-lo), mark, sentence(item), bbsAgo(n.d, item.UpdatedAt))
+		t.Row(ui.Num(i-lo+1, hi-lo), mark, sentence(item), bbsAgo(n.d, item.UpdatedAt)).Zone(n.d, rowZone(n.zid+"row", i-lo))
 		if i-lo == n.pg.sel {
 			t.Select()
 		}

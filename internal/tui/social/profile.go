@@ -1,6 +1,7 @@
 package social
 
 import (
+	"strconv"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
@@ -21,6 +22,7 @@ type profileTab interface {
 	update(msg tea.Msg) tea.Cmd
 	key(msg tea.KeyPressMsg) tea.Cmd
 	view(width, height int) string
+	click(msg tea.MouseReleaseMsg) tea.Cmd
 }
 
 type profileMsg struct {
@@ -40,12 +42,13 @@ type profile struct {
 	tab     int
 	posts   *postsTab
 	w, h    int
+	zid     string // the prefix of the zone IDs
 }
 
 // NewProfile returns the profile of the user userID. A userID of 0 is the
 // signed-in member.
 func NewProfile(d *ui.Deps, userID int) ui.Screen {
-	pr := &profile{d: d, userID: userID, load: newLoader(d)}
+	pr := &profile{d: d, userID: userID, load: newLoader(d), zid: ui.ZonePrefix()}
 	if userID == 0 && d.Me != nil {
 		pr.userID = d.Me.Id
 	}
@@ -122,8 +125,27 @@ func (pr *profile) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 		return pr, tea.Batch(pr.load.spin(msg), pr.forward(msg))
 	case tea.KeyPressMsg:
 		return pr, pr.key(msg)
+	case tea.MouseReleaseMsg:
+		return pr, pr.click(msg)
 	}
 	return pr, pr.forward(msg)
+}
+
+// tabZone is the zone of the tab i in the tab bar.
+func (pr *profile) tabZone(i int) string { return pr.zid + "tab." + strconv.Itoa(i) }
+
+// click opens a clicked tab of the tab bar. Other clicks go to the open
+// tab.
+func (pr *profile) click(msg tea.MouseReleaseMsg) tea.Cmd {
+	if pr.load.loading || pr.load.err != nil {
+		return nil
+	}
+	for i := range pr.tabs {
+		if pr.d.Clicked(pr.tabZone(i), msg) {
+			return pr.open(i)
+		}
+	}
+	return pr.tabs[pr.tab].click(msg)
 }
 
 // forward gives a data message to all tabs. Each tab takes only its own.
@@ -212,10 +234,10 @@ func (pr *profile) tabBar() string {
 	for i, t := range pr.tabs {
 		label := string(rune('1'+i)) + " " + t.name()
 		if i == pr.tab {
-			parts[i] = s.Badge.Render(label)
+			parts[i] = pr.d.Mark(pr.tabZone(i), s.Badge.Render(label))
 			continue
 		}
-		parts[i] = s.Muted.Render(" " + label + " ")
+		parts[i] = pr.d.Mark(pr.tabZone(i), s.Muted.Render(" "+label+" "))
 	}
 	return strings.Join(parts, " ")
 }

@@ -122,32 +122,43 @@ func bbsClock(t time.Time) string {
 // unread counts. A hint that does not fit in the width is left out with
 // the hints after it.
 func (m *model) hintLine() string {
-	var labels []string
-	if c, ok := m.top().(ui.Commander); ok {
-		for _, cmd := range c.Commands() {
-			switch {
-			case cmd.Label == "":
-			case cmd.NoCount:
-				labels = append(labels, cmd.Label)
-			default:
-				labels = append(labels, m.withCount(cmd.Name, cmd.Label))
-			}
-		}
-	} else {
-		for _, g := range bbsGlobals {
-			labels = append(labels, m.withCount(g.name, i18n.T(g.label)))
-		}
-	}
 	line, used := "", 0
-	for _, l := range labels {
-		w := 2 + ansi.StringWidth(l)
+	for i, h := range m.hints() {
+		w := 2 + ansi.StringWidth(h.label)
 		if used+w > m.w {
 			break
 		}
-		line += strings.Repeat(" ", min(used, 1)+1) + m.paintHint(l)
+		line += strings.Repeat(" ", min(used, 1)+1) + m.markHint(i, h.label)
 		used += w
 	}
 	return line
+}
+
+// hint is one hint of the hint line: the name of its command and the label.
+type hint struct {
+	name, label string
+}
+
+// hints returns the hints of the top screen, or the global hints.
+func (m *model) hints() []hint {
+	var out []hint
+	c, ok := m.top().(ui.Commander)
+	if !ok {
+		for _, g := range bbsGlobals {
+			out = append(out, hint{g.name, m.withCount(g.name, i18n.T(g.label))})
+		}
+		return out
+	}
+	for _, cmd := range c.Commands() {
+		switch {
+		case cmd.Label == "":
+		case cmd.NoCount:
+			out = append(out, hint{cmd.Name, cmd.Label})
+		default:
+			out = append(out, hint{cmd.Name, m.withCount(cmd.Name, cmd.Label)})
+		}
+	}
+	return out
 }
 
 // withCount adds the unread count to the hint of the global M or N.

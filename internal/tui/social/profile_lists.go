@@ -29,10 +29,13 @@ type bookmarksTab struct {
 	shown int
 	list  ui.List
 	pg    pager
+	zid   string // the prefix of the zone IDs
 }
 
 func newBookmarksTab(d *ui.Deps) *bookmarksTab {
-	return &bookmarksTab{d: d, load: newLoader(d), page: 1, pages: 1}
+	t := &bookmarksTab{d: d, load: newLoader(d), page: 1, pages: 1, zid: ui.ZonePrefix()}
+	t.list.SetZones(d, t.zid+"row")
+	return t
 }
 
 func (t *bookmarksTab) name() string   { return i18n.T("social.profile.bookmarks") }
@@ -56,7 +59,8 @@ func (t *bookmarksTab) update(msg tea.Msg) tea.Cmd {
 		}
 		t.page, t.items, t.shown = msg.page, msg.data.Items, msg.limit
 		t.pages = pageCountOf(msg.data.Total, msg.page, msg.limit)
-		t.list, t.pg.sel = ui.List{}, 0
+		t.list.Reset()
+		t.pg.sel = 0
 		t.list.SetLen(len(t.items))
 		return t.refit()
 	case tea.MouseWheelMsg:
@@ -122,7 +126,8 @@ func (t *bookmarksTab) view(width, height int) string {
 		return s.Subtitle.Render(b.Title) + "  " + s.Text.Render(plainText(b.Excerpt)) +
 			s.Muted.Render("  · "+api.AuthorName(b.Author)+" · "+relTime(t.d, b.CreatedAt))
 	})
-	return rows + "\n\n" + s.Muted.Render(i18n.Tf("social.page", map[string]any{"Page": t.page, "Pages": t.pages}))
+	page := s.Muted.Render(i18n.Tf("social.page", map[string]any{"Page": t.page, "Pages": t.pages}))
+	return rows + "\n\n" + t.d.Mark(t.zid+"page", page)
 }
 
 type watchedMsg struct {
@@ -146,10 +151,13 @@ type watchedTab struct {
 	more  bool
 	list  ui.List
 	pg    pager
+	zid   string // the prefix of the zone IDs
 }
 
 func newWatchedTab(d *ui.Deps) *watchedTab {
-	return &watchedTab{d: d, load: newLoader(d)}
+	t := &watchedTab{d: d, load: newLoader(d), zid: ui.ZonePrefix()}
+	t.list.SetZones(d, t.zid+"row")
+	return t
 }
 
 func (t *watchedTab) name() string   { return i18n.T("social.profile.watched") }
@@ -192,7 +200,8 @@ func (t *watchedTab) loaded(msg watchedMsg) tea.Cmd {
 		return cmd
 	}
 	if !msg.more {
-		t.items, t.list, t.pg = nil, ui.List{}, pager{per: t.pg.per}
+		t.items, t.pg = nil, pager{per: t.pg.per}
+		t.list.Reset()
 	}
 	t.items = append(t.items, msg.page.Items...)
 	t.next = msg.page.NextCursor

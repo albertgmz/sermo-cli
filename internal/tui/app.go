@@ -79,7 +79,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // handle runs the app handlers in order. The first handler that knows the
 // message handles it. It returns false when no handler knows the message.
 func (m *model) handle(msg tea.Msg) (tea.Cmd, bool) {
-	for _, h := range []func(tea.Msg) (tea.Cmd, bool){m.updateFrame, m.updateNav, m.updateSession, m.updateIntent, m.updateThemes, m.updateLocales, m.updateBBS} {
+	for _, h := range []func(tea.Msg) (tea.Cmd, bool){m.updateFrame, m.updateMouse, m.updateNav, m.updateSession, m.updateIntent, m.updateThemes, m.updateLocales, m.updateBBS} {
 		if cmd, handled := h(msg); handled {
 			return cmd, true
 		}
@@ -205,9 +205,11 @@ func (m *model) resizeAll() tea.Cmd {
 }
 
 func (m *model) View() tea.View {
-	v := tea.NewView(m.render())
+	v := tea.NewView(m.d.Zones.Scan(m.render()))
 	v.AltScreen = true
-	v.MouseMode = tea.MouseModeCellMotion
+	if m.d.Config.MouseOn() {
+		v.MouseMode = tea.MouseModeCellMotion
+	}
 	v.WindowTitle = m.site
 	return v
 }
@@ -233,16 +235,27 @@ func (m *model) render() string {
 	screen := c.statusBar(m.w) + "\n" +
 		ui.Frame(m.d.Styles, m.d.Theme, m.breadcrumb(), content, m.w, m.h-2) + "\n" + bottom
 	if m.toast != nil {
+		x, y, _, _ := m.toastRect()
 		box := toastBox(m.d.Styles, m.d.Theme, *m.toast, m.w/2)
-		bw, bh := ansi.StringWidth(strings.Split(box, "\n")[0]), strings.Count(box, "\n")+1
-		x := m.w - bw - toastMargin + m.toastOffset(bw)
-		screen = overlay(screen, clipRight(box, m.w-x), x, m.h-2-bh)
+		screen = overlay(screen, clipRight(box, m.w-x), x, y)
 	}
 	return screen
 }
 
+// toastRect returns the position and the size of the toast. In the BBS
+// interface the toast is the last line of the content area.
+func (m *model) toastRect() (x, y, w, h int) {
+	if m.d.BBS() {
+		_, ch := m.contentSize()
+		return 0, 3 + ch - 1, m.w, 1
+	}
+	box := toastBox(m.d.Styles, m.d.Theme, *m.toast, m.w/2)
+	w, h = ansi.StringWidth(strings.Split(box, "\n")[0]), strings.Count(box, "\n")+1
+	return m.w - w - toastMargin + m.toastOffset(w), m.h - 2 - h, w, h
+}
+
 func (m *model) chrome() chrome {
-	c := chrome{s: m.d.Styles, t: m.d.Theme, site: m.site, clock: m.d.Now().Format("15:04")}
+	c := chrome{s: m.d.Styles, t: m.d.Theme, site: m.site, clock: m.d.Now().Format("15:04"), d: m.d}
 	if m.d.Me != nil {
 		c.user = m.d.Me.Username
 		c.alerts, c.messages = m.counters.Notifications, m.counters.Conversations

@@ -50,12 +50,14 @@ type notifications struct {
 	more       bool
 	pg         pager
 	w, h       int
+	zid        string // the prefix of the zone IDs
 }
 
 // NewNotifications returns the notification list of the viewer.
 func NewNotifications(d *ui.Deps) ui.Screen {
-	n := &notifications{d: d, load: newLoader(d)}
+	n := &notifications{d: d, load: newLoader(d), zid: ui.ZonePrefix()}
 	n.list.SetClock(d.Now)
+	n.list.SetZones(d, n.zid+"row")
 	return n
 }
 
@@ -119,6 +121,8 @@ func (n *notifications) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 	case tea.MouseWheelMsg:
 		n.list.Update(msg)
 		return n, n.loadMore()
+	case tea.MouseReleaseMsg:
+		return n, n.click(msg)
 	}
 	return n, nil
 }
@@ -161,6 +165,24 @@ func (n *notifications) key(msg tea.KeyPressMsg) tea.Cmd {
 	case "u":
 		n.unreadOnly = !n.unreadOnly
 		return n.fetch("")
+	}
+	if n.list.Update(msg) {
+		return n.open(n.list.Cursor())
+	}
+	return n.loadMore()
+}
+
+// click selects the clicked row, or opens it when it is the selected
+// row.
+func (n *notifications) click(msg tea.MouseReleaseMsg) tea.Cmd {
+	if n.load.loading || n.load.err != nil {
+		return nil
+	}
+	if n.d.BBS() {
+		if i, ok := n.pg.click(n.d, n.zid+"row", msg, len(n.items)); ok {
+			return n.open(i)
+		}
+		return nil
 	}
 	if n.list.Update(msg) {
 		return n.open(n.list.Cursor())

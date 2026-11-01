@@ -118,13 +118,14 @@ func previewText(d *ui.Deps, html string, w int, bbs bool) (string, error) {
 func (c *composer) Prompt() string { return i18n.T("bbs.editor.prompt") }
 
 // Commands give the hints of the line editor. The editor takes all keys,
-// so the prompt runs none of them.
+// so the prompt runs none of them. A click on a hint runs its line
+// command.
 func (c *composer) Commands() []ui.Command {
 	return []ui.Command{
 		{Name: "", Label: i18n.T("bbs.editor.hintEnter")},
-		{Name: "/S", Label: i18n.T("bbs.editor.hintSend")},
-		{Name: "/A", Label: i18n.T("bbs.editor.hintAbort")},
-		{Name: "/?", Label: i18n.T("bbs.editor.hintHelp")},
+		{Name: "/S", Label: i18n.T("bbs.editor.hintSend"), Run: c.slash("S")},
+		{Name: "/A", Label: i18n.T("bbs.editor.hintAbort"), Run: c.slash("A")},
+		{Name: "/?", Label: i18n.T("bbs.editor.hintHelp"), Run: c.slash("?")},
 	}
 }
 
@@ -249,6 +250,12 @@ func (c *composer) commit(line string) tea.Cmd {
 	}
 	e.cur, e.top, c.confirm = "", -1, false
 	return nil
+}
+
+// slash returns the Run of a hint: it runs the line command name and
+// keeps the typed line.
+func (c *composer) slash(name string) func(string) tea.Cmd {
+	return func(string) tea.Cmd { return c.runSlash(name) }
 }
 
 func (c *composer) runSlash(text string) tea.Cmd {

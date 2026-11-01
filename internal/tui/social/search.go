@@ -46,13 +46,15 @@ type search struct {
 	list  ui.List
 	pg    pager
 	w, h  int
+	zid   string // the prefix of the zone IDs
 }
 
 // NewSearch returns the search screen.
 func NewSearch(d *ui.Deps) ui.Screen {
-	s := &search{d: d, in: newInput(d), load: newLoader(d), page: 1, pages: 1}
+	s := &search{d: d, in: newInput(d), load: newLoader(d), page: 1, pages: 1, zid: ui.ZonePrefix()}
 	s.load.loading = false
 	s.list.SetClock(d.Now)
+	s.list.SetZones(d, s.zid+"row")
 	s.in.Placeholder = i18n.T("social.search.placeholder")
 	return s
 }
@@ -109,8 +111,31 @@ func (s *search) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 		}
 	case tea.MouseWheelMsg:
 		s.list.Update(msg)
+	case tea.MouseReleaseMsg:
+		return s, s.click(msg)
 	}
 	return s, nil
+}
+
+// click turns the page for a click on the page counter. A click on a row
+// selects it, or opens it when it is the selected row.
+func (s *search) click(msg tea.MouseReleaseMsg) tea.Cmd {
+	if s.load.loading || s.load.err != nil || !s.searched {
+		return nil
+	}
+	if page, ok := pageTurn(s.d, s.zid+"page", msg, s.page); ok {
+		return s.turn(page)
+	}
+	if s.d.BBS() {
+		if i, ok := s.pg.click(s.d, s.zid+"row", msg, len(s.items())); ok {
+			return s.open(i)
+		}
+		return nil
+	}
+	if s.list.Update(msg) {
+		return s.open(s.list.Cursor())
+	}
+	return nil
 }
 
 func (s *search) key(msg tea.KeyPressMsg) tea.Cmd {
@@ -292,5 +317,5 @@ func (s *search) resultsView(width, height int) string {
 	snippet := plainText(s.results[s.list.Cursor()].Post.Excerpt)
 	wrapped := firstLines(strings.Split(lipgloss.Wrap(snippet, ui.ReadingWidth(width), " "), "\n"), 3)
 	page := i18n.Tf("social.page", map[string]any{"Page": s.page, "Pages": s.pages})
-	return rows + "\n\n" + st.Text.Render(strings.Join(wrapped, "\n")) + "\n\n" + st.Muted.Render(page)
+	return rows + "\n\n" + st.Text.Render(strings.Join(wrapped, "\n")) + "\n\n" + s.d.Mark(s.zid+"page", st.Muted.Render(page))
 }

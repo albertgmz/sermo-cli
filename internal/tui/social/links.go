@@ -27,7 +27,7 @@ func (p *linkPicker) start(links []render.Link) tea.Cmd {
 		return ui.Open(links[0].URL)
 	}
 	p.links, p.open = links, true
-	p.list = ui.List{}
+	p.list.Reset()
 	p.list.SetLen(len(links))
 	p.list.SetHeight(min(len(links), 8))
 	return nil
@@ -36,8 +36,7 @@ func (p *linkPicker) start(links []render.Link) tea.Cmd {
 func (p *linkPicker) update(msg tea.Msg) tea.Cmd {
 	k, ok := msg.(tea.KeyPressMsg)
 	if !ok {
-		p.list.Update(msg)
-		return nil
+		return p.choose(p.list.Update(msg))
 	}
 	if k.String() == "esc" {
 		p.open = false
@@ -47,11 +46,16 @@ func (p *linkPicker) update(msg tea.Msg) tea.Cmd {
 		p.list.Select(n - 1)
 		return nil
 	}
-	if p.list.Update(k) {
-		p.open = false
-		return ui.Open(p.links[p.list.Cursor()].URL)
+	return p.choose(p.list.Update(k))
+}
+
+// choose opens the selected link when chosen is true.
+func (p *linkPicker) choose(chosen bool) tea.Cmd {
+	if !chosen {
+		return nil
 	}
-	return nil
+	p.open = false
+	return ui.Open(p.links[p.list.Cursor()].URL)
 }
 
 func (p *linkPicker) view(d *ui.Deps, width int) string {

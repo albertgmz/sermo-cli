@@ -23,26 +23,32 @@ const (
 	rowLanguage
 	rowPrefetch
 	rowInterface
+	rowMouse
 	settingsRows
 )
 
 // interfaces are the values of the interface row. "" is the modern interface.
 var interfaces = []string{"", config.InterfaceBBS}
 
+// mouseModes are the values of the mouse row. "" is on.
+var mouseModes = []string{"", config.MouseOff}
+
 // prefetchLevels are the values of the prefetch row. "" is the default: no prefetch.
 var prefetchLevels = []string{"", config.PrefetchLight, config.PrefetchFull}
 
 // settings changes the theme, the splash effect, the reduced motion, the
-// language and the prefetch. Each change applies at once and is saved to the
-// config file.
+// language, the prefetch, the interface and the mouse. Each change applies
+// at once and is saved to the config file.
 type settings struct {
 	d    *ui.Deps
 	list ui.List
+	zid  string // the prefix of the zone IDs
 }
 
 func newSettings(d *ui.Deps) *settings {
-	s := &settings{d: d}
+	s := &settings{d: d, zid: ui.ZonePrefix()}
 	s.list.SetClock(d.Now)
+	s.list.SetZones(d, s.zid+"row")
 	s.list.SetLen(settingsRows)
 	s.list.SetHeight(settingsRows)
 	return s
@@ -58,6 +64,9 @@ func (s *settings) Keys() []key.Binding {
 }
 
 func (s *settings) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
+	if cmd, ok := s.clickArrow(msg); ok {
+		return s, cmd
+	}
 	k, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		s.list.Update(msg)
@@ -71,6 +80,33 @@ func (s *settings) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 	}
 	s.list.Update(msg)
 	return s, nil
+}
+
+// clickArrow selects the row of a clicked arrow and changes its value.
+func (s *settings) clickArrow(msg tea.Msg) (tea.Cmd, bool) {
+	for r := range settingsRows {
+		for _, dir := range []int{-1, 1} {
+			if s.d.Clicked(s.arrowZone(dir, r), msg) {
+				s.list.Select(r)
+				return s.change(dir), true
+			}
+		}
+	}
+	return nil, false
+}
+
+// arrowZone is the zone ID of the arrow of row r: dir -1 is the left arrow.
+func (s *settings) arrowZone(dir, row int) string {
+	name := "next."
+	if dir < 0 {
+		name = "prev."
+	}
+	return s.zid + name + strconv.Itoa(row)
+}
+
+// arrows puts the value of row between the two arrows left and right.
+func (s *settings) arrows(row int, left, right string) string {
+	return s.d.Mark(s.arrowZone(-1, row), left) + " " + s.value(row) + " " + s.d.Mark(s.arrowZone(1, row), right)
 }
 
 func (s *settings) change(dir int) tea.Cmd {
@@ -90,6 +126,11 @@ func (s *settings) change(dir int) tea.Cmd {
 		c.Prefetch = cycle(prefetchLevels, c.Prefetch, dir)
 	case rowInterface:
 		c.Interface = cycle(interfaces, c.Interface, dir)
+	case rowMouse:
+		c.Mouse = cycle(mouseModes, c.Mouse, dir)
+		if s.d.Zones != nil {
+			s.d.Zones.SetEnabled(c.MouseOn())
+		}
 	}
 	if err := config.Save(*c); err != nil {
 		return ui.Toast(i18n.T("core.toast.saveFailed"), ui.ToastError)
@@ -139,10 +180,9 @@ func (s *settings) value(row int) string {
 		}
 		return i18n.T("core.effect." + c.Effect)
 	case rowMotion:
-		if c.ReducedMotion {
-			return i18n.T("core.settings.on")
-		}
-		return i18n.T("core.settings.off")
+		return onOff(c.ReducedMotion)
+	case rowMouse:
+		return onOff(c.MouseOn())
 	case rowPrefetch:
 		return prefetchName(c)
 	case rowInterface:
@@ -152,6 +192,13 @@ func (s *settings) value(row int) string {
 		return i18n.T("bbs.interface.modern")
 	}
 	return i18n.LanguageName(i18n.Locale())
+}
+
+func onOff(on bool) string {
+	if on {
+		return i18n.T("core.settings.on")
+	}
+	return i18n.T("core.settings.off")
 }
 
 // prefetchName returns the name of the prefetch level. An unknown value is off.
@@ -176,7 +223,7 @@ func themeName(t theme.Theme) string {
 func settingLabel(row int) string {
 	return i18n.T([]string{
 		"core.settings.theme", "core.settings.effect", "core.settings.motion", "core.settings.language",
-		"prefetch.settings.label", "bbs.settings.interface",
+		"prefetch.settings.label", "bbs.settings.interface", "core.settings.mouse",
 	}[row])
 }
 
@@ -191,7 +238,7 @@ func (s *settings) View(width, height int) string {
 	}
 	rows := s.list.View(st, t, min(width, 64), s.d.Phase(), func(i, w int) string {
 		label := settingLabel(i)
-		return label + strings.Repeat(" ", labelW-ansi.StringWidth(label)+3) + "◀ " + s.value(i) + " ▶"
+		return label + strings.Repeat(" ", labelW-ansi.StringWidth(label)+3) + s.arrows(i, "◀", "▶")
 	})
 	parts := []string{
 		ui.Header(st, t, s.Title(), width), "", rows, "",
@@ -258,7 +305,7 @@ func (s *settings) bbsView(width int) string {
 		ui.Column{Title: i18n.T("bbs.settings.option"), Width: labelW}, ui.Column{Title: i18n.T("bbs.settings.value")})
 	t.Full(st.Subtitle.Render(s.Title())).Header()
 	for r := range settingsRows {
-		t.Row(ui.Num(r+1, settingsRows), settingLabel(r), "< "+s.value(r)+" >")
+		t.Row(ui.Num(r+1, settingsRows), settingLabel(r), s.arrows(r, "<", ">")).Zone(s.d, s.list.RowZone(r))
 		if r == s.list.Cursor() {
 			t.Select()
 		}

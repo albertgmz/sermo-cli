@@ -29,7 +29,7 @@ func (c *conversations) Prompt() string {
 // Commands are the BBS commands of the conversation list.
 func (c *conversations) Commands() []ui.Command {
 	if c.led != nil {
-		return editorHint()
+		return editorHints(&c.led)
 	}
 	pick := func(arg string) tea.Cmd {
 		i, ok := c.pg.pick(arg, len(c.items))
@@ -121,7 +121,7 @@ func (c *conversations) bbsView(width, height int) string {
 		ui.Column{Title: i18n.T("bbs.social.conv.last"), Width: 18},
 	)
 	page := i18n.Tf("bbs.social.page", map[string]any{"Page": c.page, "Pages": c.pages})
-	t.Full(apart(s.Subtitle.Render(i18n.T("bbs.social.conv.heading")), s.Text.Render(page), width-4)).Header()
+	t.Full(apart(s.Subtitle.Render(i18n.T("bbs.social.conv.heading")), c.d.Mark(c.zid+"page", s.Text.Render(page)), width-4)).Header()
 	rows := min(len(c.items), bbsRows(height, 8))
 	for i := range rows {
 		v := c.items[i]
@@ -130,7 +130,7 @@ func (c *conversations) bbsView(width, height int) string {
 			mark = s.Accent.Render("(*)")
 		}
 		last := bbsAgo(c.d, v.LastMessage.SentAt) + " " + api.AuthorName(v.LastMessage.User)
-		t.Row(ui.Num(i+1, rows), mark, v.Title, whoTalks(v), last)
+		t.Row(ui.Num(i+1, rows), mark, v.Title, whoTalks(v), last).Zone(c.d, rowZone(c.zid+"row", i))
 		if i == c.pg.sel {
 			t.Select()
 		}

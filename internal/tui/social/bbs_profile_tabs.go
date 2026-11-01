@@ -123,7 +123,7 @@ func (t *postsTab) bbsView(width, height int) string {
 	s := t.d.Styles
 	if t.open >= 0 {
 		head := []string{ui.Rule(s, width, '-'), boxRow(s, width, s.Subtitle.Render(i18n.T("bbs.social.profile.post")))}
-		return pad(append(head, t.bbsDetail...), height)
+		return t.d.MarkLinks(t.zid+"link.", pad(append(head, t.bbsDetail...), height), len(t.links))
 	}
 	t.pg.clamp(len(t.items))
 	tb := ui.NewTable(width,
@@ -136,7 +136,8 @@ func (t *postsTab) bbsView(width, height int) string {
 	lo, hi := t.pg.window(len(t.items))
 	for i := lo; i < hi; i++ {
 		p := t.items[i]
-		tb.Row(ui.Num(i-lo+1, hi-lo), api.AuthorName(p.Author), plainText(p.BodyHtml), bbsAgo(t.d, p.CreatedAt))
+		tb.Row(ui.Num(i-lo+1, hi-lo), api.AuthorName(p.Author), plainText(p.BodyHtml), bbsAgo(t.d, p.CreatedAt)).
+			Zone(t.d, rowZone(t.zid+"row", i-lo))
 		if i-lo == t.pg.sel {
 			tb.Select()
 		}
@@ -178,11 +179,12 @@ func (t *bookmarksTab) bbsView(width, height int) string {
 		ui.Column{Title: i18n.T("bbs.social.search.date"), Width: 9},
 	)
 	page := i18n.Tf("bbs.social.page", map[string]any{"Page": t.page, "Pages": t.pages})
-	tb.Full(apart(s.Subtitle.Render(i18n.T("bbs.social.profile.bookmarksHeading")), s.Text.Render(page), width-4)).Header()
+	tb.Full(apart(s.Subtitle.Render(i18n.T("bbs.social.profile.bookmarksHeading")), t.d.Mark(t.zid+"page", s.Text.Render(page)), width-4)).Header()
 	lo, hi := t.pg.window(len(t.items))
 	for i := lo; i < hi; i++ {
 		b := t.items[i]
-		tb.Row(ui.Num(i-lo+1, hi-lo), b.Title, api.AuthorName(b.Author), bbsAgo(t.d, b.CreatedAt))
+		tb.Row(ui.Num(i-lo+1, hi-lo), b.Title, api.AuthorName(b.Author), bbsAgo(t.d, b.CreatedAt)).
+			Zone(t.d, rowZone(t.zid+"row", i-lo))
 		if i-lo == t.pg.sel {
 			tb.Select()
 		}
@@ -237,7 +239,7 @@ func (t *watchedTab) bbsView(width, height int) string {
 	lo, hi := t.pg.window(len(t.items))
 	for i := lo; i < hi; i++ {
 		w := t.items[i]
-		tb.Row(ui.Num(i-lo+1, hi-lo), w.Title, bbsAgo(t.d, w.LastPostAt))
+		tb.Row(ui.Num(i-lo+1, hi-lo), w.Title, bbsAgo(t.d, w.LastPostAt)).Zone(t.d, rowZone(t.zid+"row", i-lo))
 		if i-lo == t.pg.sel {
 			tb.Select()
 		}

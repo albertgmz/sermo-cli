@@ -43,12 +43,14 @@ type online struct {
 	list  ui.List
 	pg    pager
 	w, h  int
+	zid   string // the prefix of the zone IDs
 }
 
 // NewOnline returns the list of the current visitors.
 func NewOnline(d *ui.Deps) ui.Screen {
-	o := &online{d: d, load: newLoader(d)}
+	o := &online{d: d, load: newLoader(d), zid: ui.ZonePrefix()}
 	o.list.SetClock(d.Now)
+	o.list.SetZones(d, o.zid+"row")
 	return o
 }
 
@@ -85,8 +87,27 @@ func (o *online) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 		o.list.SetLen(len(o.page.Items))
 	case tea.KeyPressMsg:
 		return o, o.key(msg)
+	case tea.MouseReleaseMsg:
+		return o, o.click(msg)
 	}
 	return o, nil
+}
+
+// click selects a clicked row, or opens it when it is the selected row.
+func (o *online) click(msg tea.MouseReleaseMsg) tea.Cmd {
+	if o.page == nil {
+		return nil
+	}
+	if o.d.BBS() {
+		if i, ok := o.pg.click(o.d, o.zid+"row", msg, len(o.page.Items)); ok {
+			return o.open(i)
+		}
+		return nil
+	}
+	if o.list.Update(msg) {
+		return o.open(o.list.Cursor())
+	}
+	return nil
 }
 
 func (o *online) key(msg tea.KeyPressMsg) tea.Cmd {
@@ -202,7 +223,7 @@ func (o *online) bbsView(width, height int) string {
 	lo, hi := o.pg.window(len(items))
 	for i := lo; i < hi; i++ {
 		v := items[i]
-		t.Row(ui.Num(i-lo+1, hi-lo), who(v), bbsAgo(o.d, v.Activity.At), where(v))
+		t.Row(ui.Num(i-lo+1, hi-lo), who(v), bbsAgo(o.d, v.Activity.At), where(v)).Zone(o.d, rowZone(o.zid+"row", i-lo))
 		if i-lo == o.pg.sel {
 			t.Select()
 		}

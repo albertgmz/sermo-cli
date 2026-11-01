@@ -94,12 +94,16 @@ func Toast(text string, kind ToastKind) tea.Cmd {
 	return func() tea.Msg { return ToastMsg{Text: text, Kind: kind} }
 }
 
+// OpenURL opens a URL in the system browser. Tests replace it, because
+// the browser is outside the app.
+var OpenURL = browser.OpenURL
+
 // Open returns a Cmd that opens url in the system browser. When the browser
 // does not open, the Cmd gives an error toast.
 func Open(url string) tea.Cmd {
 	return func() tea.Msg {
 		browser.Stdout, browser.Stderr = io.Discard, io.Discard
-		if err := browser.OpenURL(url); err != nil {
+		if err := OpenURL(url); err != nil {
 			return ToastMsg{Text: i18n.T("core.toast.openFailed"), Kind: ToastError}
 		}
 		return nil

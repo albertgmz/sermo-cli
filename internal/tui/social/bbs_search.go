@@ -78,7 +78,8 @@ func (s *search) bbsView(width, height int) string {
 	}
 	right := box + " " + i18n.T("social.key.titlesOnly")
 	if !s.members && s.searched {
-		right = i18n.Tf("bbs.social.page", map[string]any{"Page": s.page, "Pages": s.pages}) + "   " + right
+		page := i18n.Tf("bbs.social.page", map[string]any{"Page": s.page, "Pages": s.pages})
+		right = s.d.Mark(s.zid+"page", page) + "   " + right
 	}
 	title := apart(st.Subtitle.Render(head), st.Text.Render(right), width-4)
 	if v, ok := s.load.bbsView(width, height-3); ok {
@@ -102,7 +103,7 @@ func (s *search) membersView(width int, title string) string {
 	)
 	t.Full(title).Header()
 	for i, u := range s.users {
-		t.Row(ui.Num(i+1, len(s.users)), u.Username)
+		t.Row(ui.Num(i+1, len(s.users)), u.Username).Zone(s.d, rowZone(s.zid+"row", i))
 		if i == s.pg.sel {
 			t.Select()
 		}
@@ -126,7 +127,8 @@ func (s *search) resultsBBS(width, height int, title string) string {
 	rows := min(len(s.results), bbsRows(height, searchFrame))
 	for i := range rows {
 		r := s.results[i]
-		t.Row(ui.Num(i+1, rows), r.Thread.Title, r.Thread.Node.Title, api.AuthorName(r.Post.Author), bbsAgo(s.d, r.Post.CreatedAt))
+		t.Row(ui.Num(i+1, rows), r.Thread.Title, r.Thread.Node.Title, api.AuthorName(r.Post.Author), bbsAgo(s.d, r.Post.CreatedAt)).
+			Zone(s.d, rowZone(s.zid+"row", i))
 		if i == s.pg.sel {
 			t.Select()
 		}

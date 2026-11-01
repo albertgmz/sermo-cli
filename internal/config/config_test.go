@@ -205,3 +205,24 @@ func TestLocalesDirIsInsideDir(t *testing.T) {
 		t.Errorf("LocalesDir() = %q, %v, want %q", got, err, filepath.Join(dir, "locales"))
 	}
 }
+
+func TestMouseIsOnUnlessOff(t *testing.T) {
+	dir := useTempDir(t)
+	if !(Config{}).MouseOn() {
+		t.Error("the zero Config must have the mouse on")
+	}
+	if err := Save(Config{Mouse: MouseOff}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"mouse": "off"`) {
+		t.Errorf("config.json = %s, want the mouse key", data)
+	}
+	got, _ := Load()
+	if got.MouseOn() {
+		t.Errorf("Load() = %+v, want the mouse off", got)
+	}
+}

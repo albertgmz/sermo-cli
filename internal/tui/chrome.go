@@ -30,6 +30,7 @@ type chrome struct {
 	alerts   int
 	messages int
 	clock    string
+	d        *ui.Deps // marks the zones of the badges and the hotkeys
 }
 
 // statusBar draws the top bar: site, member, badges and clock.
@@ -40,8 +41,8 @@ func (c chrome) statusBar(width int) string {
 		left += c.s.Muted.Render("☺ " + i18n.T("core.status.guest"))
 	} else {
 		left += c.s.Subtitle.Render("☻ "+c.user) + sep +
-			c.badge(i18n.T("core.status.alerts"), c.alerts) + "  " +
-			c.badge(i18n.T("core.status.messages"), c.messages)
+			c.d.Mark(zoneAlerts, c.badge(i18n.T("core.status.alerts"), c.alerts)) + "  " +
+			c.d.Mark(zoneMessages, c.badge(i18n.T("core.status.messages"), c.messages))
 	}
 	right := c.s.Accent.Render(c.clock) + " "
 	gap := width - ansi.StringWidth(left) - ansi.StringWidth(right)
@@ -66,6 +67,7 @@ func (c chrome) hotkeyBar(width int) string {
 	short := make([]string, len(hotkeys))
 	for i, h := range hotkeys {
 		full[i], short[i] = c.hotkeyItem(h, inline)
+		full[i], short[i] = c.d.Mark(hotkeyZone(h.key), full[i]), c.d.Mark(hotkeyZone(h.key), short[i])
 	}
 	line := " " + strings.Join(full, "  ")
 	if ansi.StringWidth(line) > width {
@@ -112,16 +114,17 @@ func toastBox(s ui.Styles, t theme.Theme, msg ui.ToastMsg, maxWidth int) string 
 		Padding(0, 1).Render(text)
 }
 
-// overlay draws top over base with the top left corner at x, y.
+// overlay draws top over base with the top left corner at x, y. The zones
+// of base stay.
 func overlay(base, top string, x, y int) string {
-	return lipgloss.NewCompositor(
+	return ui.KeepZones(base, lipgloss.NewCompositor(
 		lipgloss.NewLayer(base),
 		lipgloss.NewLayer(top).X(x).Y(y).Z(1),
-	).Render()
+	).Render())
 }
 
 // withBackground fills a line of width cells with the gradient g as the
-// background of each cell that has no background.
+// background of each cell that has no background. The zones of line stay.
 func withBackground(line string, width int, g fx.Gradient) string {
 	c := lipgloss.NewCanvas(width, 1)
 	c.Compose(lipgloss.NewLayer(line))
@@ -131,7 +134,7 @@ func withBackground(line string, width int, g fx.Gradient) string {
 			cell.Style.Bg = color.RGBA{R: r, G: gg, B: b, A: 255}
 		}
 	}
-	return c.Render()
+	return ui.KeepZones(line, c.Render())
 }
 
 // dim returns a dark copy of g for bar backgrounds.

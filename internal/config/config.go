@@ -25,7 +25,15 @@ type Config struct {
 	Locale        string `json:"locale,omitempty"`        // "es" or "en"; "" means "es"
 	Prefetch      string `json:"prefetch,omitempty"`      // a Prefetch value; "" means PrefetchOff
 	Interface     string `json:"interface,omitempty"`     // InterfaceBBS or "" for the modern interface
+	Mouse         string `json:"mouse,omitempty"`         // MouseOff or "" for mouse clicks
 }
+
+// MouseOff is the value of Config.Mouse that stops the mouse clicks. Then
+// the terminal selects text with the mouse.
+const MouseOff = "off"
+
+// MouseOn reports whether the app uses the mouse.
+func (c Config) MouseOn() bool { return c.Mouse != MouseOff }
 
 // InterfaceBBS is the value of Config.Interface for the BBS interface.
 const InterfaceBBS = "bbs"

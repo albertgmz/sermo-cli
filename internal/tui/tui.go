@@ -11,6 +11,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/colorprofile"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/albertgmz/sermo-cli/internal/auth"
 	"github.com/albertgmz/sermo-cli/internal/config"
@@ -48,6 +49,7 @@ type Options struct {
 func Run(ctx context.Context, d ui.Deps, opts Options) error {
 	d.Profile = colorprofile.Detect(os.Stdout, os.Environ())
 	m := newModel(ctx, &d, opts)
+	defer d.Zones.Close()
 	_, err := tea.NewProgram(m, tea.WithContext(ctx), tea.WithFPS(maxFPS)).Run()
 	return err
 }
@@ -75,6 +77,10 @@ func newModel(ctx context.Context, d *ui.Deps, opts Options) *model {
 	if d.LocalesDir == "" {
 		d.LocalesDir, _ = config.LocalesDir()
 	}
+	if d.Zones == nil {
+		d.Zones = zone.New()
+	}
+	d.Zones.SetEnabled(d.Config.MouseOn())
 	d.SetTheme(d.Themes.ByID(d.Config.Theme))
 	d.Glamour = glamourStyle(d, true)
 	m := &model{

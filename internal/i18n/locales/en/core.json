@@ -57,6 +57,7 @@
   "core.settings.motion": "Reduced motion",
   "core.settings.language": "Language",
   "core.settings.random": "Random",
+  "core.settings.mouse": "Mouse",
   "core.settings.on": "On",
   "core.settings.off": "Off",
   "core.settings.hint": "Use ← and → to change a value. The change is saved immediately.",

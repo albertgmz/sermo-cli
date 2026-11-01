@@ -52,6 +52,7 @@ type tableItem struct {
 	kind     itemKind
 	cells    []string
 	selected bool
+	zone     string // the zone ID of the item, or ""
 }
 
 // Table is an ASCII table of a fixed width. Add the items in order, then
@@ -74,6 +75,7 @@ type Table struct {
 	cols   []Column
 	widths []int
 	items  []tableItem
+	d      *Deps // marks the zones of the items
 }
 
 // NewTable returns an empty table of width cells with the columns cols.
@@ -116,8 +118,16 @@ func (t *Table) Header() *Table {
 func (t *Table) Row(cells ...string) *Table { return t.add(kindRow, cells...) }
 
 // Sub adds a second line to the row above it, for example a description.
-// It gets the Muted style.
-func (t *Table) Sub(cells ...string) *Table { return t.add(kindSub, cells...) }
+// It gets the Muted style. It is in the zone of the row above it.
+func (t *Table) Sub(cells ...string) *Table {
+	zone := ""
+	if n := len(t.items); n > 0 {
+		zone = t.items[n-1].zone
+	}
+	t.add(kindSub, cells...)
+	t.items[len(t.items)-1].zone = zone
+	return t
+}
 
 // Section adds a section title. It spans all columns after the first.
 func (t *Table) Section(title string) *Table { return t.add(kindSection, title) }
@@ -146,14 +156,25 @@ func (t *Table) Select() *Table {
 	return t
 }
 
+// Zone puts the last item in the zone id, so that a click can find it. d
+// marks the zone. The Sub rows that come next are in the same zone.
+func (t *Table) Zone(d *Deps, id string) *Table {
+	if n := len(t.items); n > 0 {
+		t.items[n-1].zone = id
+		t.d = d
+	}
+	return t
+}
+
 // tableDraw keeps the state of one Render call.
 type tableDraw struct {
 	t         *Table
 	s         Styles
 	lines     []string
-	prevCols  bool // the last content item has columns
-	afterRule bool // the last line is a separator line
-	pending   bool // a Rule item waits for the next content item
+	zones     []string // the zone ID of each line, or ""
+	prevCols  bool     // the last content item has columns
+	afterRule bool     // the last line is a separator line
+	pending   bool     // a Rule item waits for the next content item
 }
 
 // Render draws the table. Each line is exactly the table width.
@@ -165,26 +186,51 @@ func (t *Table) Render(s Styles) string {
 			continue
 		}
 		d.separate(len(d.lines) == 0, it.kind != kindFull)
-		d.lines = append(d.lines, t.line(s, it))
+		d.add(t.line(s, it), it.zone)
 		d.afterRule, d.pending = false, false
 		if it.kind == kindHeader {
-			d.lines = append(d.lines, t.rule(s, '=', true))
+			d.add(t.rule(s, '=', true), "")
 			d.afterRule = true
 		}
 	}
 	if len(d.lines) > 0 && !d.afterRule {
-		d.lines = append(d.lines, t.rule(s, '-', d.prevCols))
+		d.add(t.rule(s, '-', d.prevCols), "")
 	}
-	return strings.Join(d.lines, "\n")
+	return d.marked()
+}
+
+func (d *tableDraw) add(line, zone string) {
+	d.lines = append(d.lines, line)
+	d.zones = append(d.zones, zone)
+}
+
+// marked joins the lines. The markers of a zone go around the lines of the
+// zone, which follow each other.
+func (d *tableDraw) marked() string {
+	out := make([]string, 0, len(d.lines))
+	for i := 0; i < len(d.lines); {
+		z, end := d.zones[i], i+1
+		if z == "" || d.t.d == nil {
+			out = append(out, d.lines[i])
+			i = end
+			continue
+		}
+		for end < len(d.lines) && d.zones[end] == z {
+			end++
+		}
+		out = append(out, d.t.d.Mark(z, strings.Join(d.lines[i:end], "\n")))
+		i = end
+	}
+	return strings.Join(out, "\n")
 }
 
 // separate draws the line before a content item when the item needs one.
 func (d *tableDraw) separate(first, cols bool) {
 	switch {
 	case first:
-		d.lines = append(d.lines, d.t.rule(d.s, '-', cols))
+		d.add(d.t.rule(d.s, '-', cols), "")
 	case !d.afterRule && (d.pending || cols != d.prevCols):
-		d.lines = append(d.lines, d.t.rule(d.s, '-', cols || d.prevCols))
+		d.add(d.t.rule(d.s, '-', cols || d.prevCols), "")
 	}
 	d.prevCols = cols
 }
@@ -252,7 +298,7 @@ func cell(st lipgloss.Style, text string, w int, align Align) string {
 	case AlignCenter:
 		left = gap / 2
 	}
-	if text != "" && !strings.Contains(text, "\x1b") {
+	if text != "" && !hasColor(text) {
 		text = st.Render(text)
 	}
 	return strings.Repeat(" ", left) + text + strings.Repeat(" ", gap-left)

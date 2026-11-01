@@ -26,6 +26,7 @@ type nodes struct {
 	unread  map[int]bool
 	list    ui.List
 	bbs     bbsIndex
+	zid     string // the prefix of the zone IDs
 }
 
 type nodesMsg struct {
@@ -44,8 +45,9 @@ type unreadMsg struct {
 
 // NewNodes returns the screen with the forum tree. It is the home screen.
 func NewNodes(d *ui.Deps) ui.Screen {
-	s := &nodes{d: d, sp: ui.NewSpinner(d.Styles), loading: true}
+	s := &nodes{d: d, sp: ui.NewSpinner(d.Styles), loading: true, zid: ui.ZonePrefix()}
 	s.list.SetClock(d.Now)
+	s.list.SetZones(d, s.zid+"row")
 	return s
 }
 
@@ -114,7 +116,7 @@ func (s *nodes) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 		return s, msg.cmd()
 	case spinner.TickMsg:
 		return s, spin(s.d, &s.sp, s.loading, msg)
-	case tea.KeyPressMsg, tea.MouseWheelMsg:
+	case tea.KeyPressMsg, tea.MouseWheelMsg, tea.MouseReleaseMsg:
 		return s, s.input(msg)
 	}
 	return s, nil

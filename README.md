@@ -145,6 +145,22 @@ The global keys do not work while a text field has the focus.
 
 Posts use BB code. Each screen shows its keys in the help screen.
 
+### Mouse
+
+The mouse is on by default. Click with the left button. A click does the same thing as the key or the command.
+
+- Click a list row to select it. Click the selected row to open it.
+- Click an item of the hotkey bar or a hint of the BBS hint line to run it.
+- Click the alerts or the messages counter in the status bar to open the notifications or the conversations.
+- Click a link number, for example `[2]`, in a post to open the link.
+- Click a post to select it. In the BBS interface, click the quote, reply or edit action under a post to do that action on the post.
+- Click the left half of the page counter to go to the previous page. Click the right half to go to the next page.
+- Click a profile tab to show it.
+- In the settings, click the left or the right arrow to change a value.
+- Click the splash or a message box to close it.
+
+The mouse wheel scrolls lists and posts. To select text with the mouse, set the mouse to off on the settings screen. Then the terminal selects the text.
+
 ## Themes and effects
 
 Change the theme and the effect in the settings screen. `sermo` saves the change immediately.
@@ -292,6 +308,7 @@ The configuration file is `config.json` in the configuration directory.
 | `locale` | `es`, `en` or the code of a language in the translations folder. Empty means `es`. Refer to [Translations](#translations). |
 | `interface` | `bbs` selects the BBS interface. Empty means the modern interface. |
 | `prefetch` | `off`, `light` or `full`. Empty means `off`. Refer to [Data usage](#data-usage). |
+| `mouse` | `off` stops the mouse clicks. Empty means on. Refer to [Mouse](#mouse). |
 
 The settings screen writes this file. You can also edit it.
 

@@ -53,10 +53,14 @@ type postsTab struct {
 	// bbsDetail are the lines of the open post in the BBS view.
 	bbsDetail []string
 	w, h      int
+	zid       string // the prefix of the zone IDs
 }
 
 func newPostsTab(d *ui.Deps, userID int) *postsTab {
-	return &postsTab{d: d, userID: userID, load: newLoader(d), open: -1}
+	t := &postsTab{d: d, userID: userID, load: newLoader(d), open: -1, zid: ui.ZonePrefix()}
+	t.list.SetZones(d, t.zid+"row")
+	t.picker.list.SetZones(d, t.zid+"links")
+	return t
 }
 
 func (t *postsTab) name() string   { return i18n.T("social.profile.posts") }
@@ -126,7 +130,8 @@ func (t *postsTab) loaded(msg postsMsg) tea.Cmd {
 	}
 	if !msg.more {
 		t.items, t.open = nil, -1
-		t.list, t.pg = ui.List{}, pager{per: t.pg.per}
+		t.pg = pager{per: t.pg.per}
+		t.list.Reset()
 	}
 	t.items = append(t.items, msg.page.Items...)
 	t.next = msg.page.NextCursor
@@ -299,7 +304,7 @@ func (t *postsTab) view(width, height int) string {
 		return rows
 	}
 	detail := firstLines(strings.Split(t.detail, "\n"), height-listH-1)
-	return rows + "\n\n" + strings.Join(detail, "\n")
+	return rows + "\n\n" + t.d.MarkLinks(t.zid+"link.", strings.Join(detail, "\n"), len(t.links))
 }
 
 func (t *postsTab) row(p gen.ProfilePost) string {

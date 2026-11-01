@@ -2,6 +2,7 @@ package social
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"charm.land/bubbles/v2/textarea"
@@ -54,6 +55,7 @@ type editor struct {
 	sending bool
 	closed  bool
 	w, h    int
+	zid     string // the prefix of the zone IDs
 }
 
 type previewState struct {
@@ -64,7 +66,7 @@ type previewState struct {
 
 // newEditor returns an editor for a body with the start text.
 func newEditor(d *ui.Deps, heading string, target gen.PreviewTarget, text string, send sendFunc) *editor {
-	e := &editor{d: d, heading: heading, target: target, send: send, body: newTextarea(d)}
+	e := &editor{d: d, heading: heading, target: target, send: send, body: newTextarea(d), zid: ui.ZonePrefix()}
 	e.body.SetValue(text)
 	e.focusField()
 	return e
@@ -151,6 +153,8 @@ func (e *editor) update(msg tea.Msg) tea.Cmd {
 		return e.key(msg)
 	case tea.PasteMsg:
 		return e.input(msg)
+	case tea.MouseReleaseMsg:
+		return e.click(msg)
 	case previewMsg:
 		if e.preview != nil {
 			e.preview = &previewState{html: msg.html, err: msg.err, done: true}
@@ -168,32 +172,46 @@ func (e *editor) update(msg tea.Msg) tea.Cmd {
 }
 
 func (e *editor) key(msg tea.KeyPressMsg) tea.Cmd {
-	switch msg.String() {
+	if cmd, ok := e.command(msg.String()); ok {
+		return cmd
+	}
+	return e.input(msg)
+}
+
+// command runs the editor action of the key k. It returns false when k
+// is not an action key.
+func (e *editor) command(k string) (tea.Cmd, bool) {
+	switch k {
 	case "esc":
-		if e.preview != nil {
-			e.preview = nil
-			return nil
-		}
-		e.closed = true
-		return nil
+		e.escape()
+		return nil, true
 	case "ctrl+s":
-		return e.submit()
+		return e.submit(), true
 	case "ctrl+p":
-		return e.togglePreview()
+		return e.togglePreview(), true
 	case "tab":
 		e.focus = (e.focus + 1) % e.fields()
 		e.focusField()
-		return nil
+		return nil, true
 	case "shift+tab":
 		e.focus = (e.focus + e.fields() - 1) % e.fields()
 		e.focusField()
-		return nil
+		return nil, true
 	}
-	if tag, ok := wrapTags[msg.String()]; ok && e.bodyFocused() && e.preview == nil {
+	if tag, ok := wrapTags[k]; ok && e.bodyFocused() && e.preview == nil {
 		e.wrap(tag)
-		return nil
+		return nil, true
 	}
-	return e.input(msg)
+	return nil, false
+}
+
+// escape closes the preview, or the editor when no preview is open.
+func (e *editor) escape() {
+	if e.preview != nil {
+		e.preview = nil
+		return
+	}
+	e.closed = true
 }
 
 // input gives a key or a paste to the field with the focus.
@@ -317,7 +335,43 @@ func (e *editor) view() string {
 	} else {
 		lines = append(lines, e.body.View())
 	}
-	return pad(lines, e.h-2) + "\n\n" + s.Muted.Render(ansiTrim(e.help(), e.w))
+	return pad(lines, e.h-2) + "\n\n" + ansiTrim(e.helpView(), e.w)
+}
+
+// helpSep is the text between two parts of the help line.
+const helpSep = " · "
+
+// helpParts splits the help line into its parts. The first word of a
+// part is the key of its action, for example "Ctrl+S".
+func (e *editor) helpParts() []string { return strings.Split(e.help(), helpSep) }
+
+// helpKey returns the key of the action of a help part, for example
+// "ctrl+s" for "Ctrl+S enviar".
+func helpKey(part string) string {
+	k, _, _ := strings.Cut(part, " ")
+	return strings.ToLower(k)
+}
+
+// helpView paints the help line and puts each part in a zone.
+func (e *editor) helpView() string {
+	s := e.d.Styles
+	parts := e.helpParts()
+	out := make([]string, len(parts))
+	for j, p := range parts {
+		out[j] = e.d.Mark(e.zid+"hint."+strconv.Itoa(j), s.Muted.Render(p))
+	}
+	return strings.Join(out, s.Muted.Render(helpSep))
+}
+
+// click runs the action of a clicked part of the help line, like its key.
+func (e *editor) click(msg tea.MouseReleaseMsg) tea.Cmd {
+	for j, p := range e.helpParts() {
+		if e.d.Clicked(e.zid+"hint."+strconv.Itoa(j), msg) {
+			cmd, _ := e.command(helpKey(p))
+			return cmd
+		}
+	}
+	return nil
 }
 
 func (e *editor) fieldsView() []string {
@@ -395,7 +449,7 @@ func routeEditor(ed **editor, msg tea.Msg) (tea.Cmd, bool) {
 // forEditor reports whether msg belongs to an open editor.
 func forEditor(msg tea.Msg) bool {
 	switch msg.(type) {
-	case tea.KeyPressMsg, tea.PasteMsg, previewMsg, sendFailedMsg, debounceMsg, suggestMsg:
+	case tea.KeyPressMsg, tea.PasteMsg, tea.MouseReleaseMsg, previewMsg, sendFailedMsg, debounceMsg, suggestMsg:
 		return true
 	}
 	return false

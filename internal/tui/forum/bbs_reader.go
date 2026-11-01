@@ -251,7 +251,7 @@ func (r *reader) bbsView(width, height int) string {
 	case r.picker != nil:
 		return r.choiceView(width, height)
 	}
-	body := r.vp.View()
+	body := r.markBody(r.vp.View())
 	if len(r.posts) == 0 {
 		body = ui.Empty(r.d.Styles, i18n.T("forum.thread.empty"), width, max(height-readerHeaderLines, 1))
 	}
@@ -467,7 +467,10 @@ func (r *reader) choiceView(width, height int) string {
 		ui.Column{Title: i18n.T("bbs.reader.choice")})
 	t.Full(s.Subtitle.Render(title)).Header()
 	for i, l := range labels[:min(len(labels), max(height-6, 1))] {
-		t.Row(ui.Num(i+1, len(labels)), l)
+		t.Row(ui.Num(i+1, len(labels)), l).Zone(r.d, r.picker.list.RowZone(i))
+		if i == r.picker.list.Cursor() {
+			t.Select()
+		}
 	}
 	return t.Render(s)
 }

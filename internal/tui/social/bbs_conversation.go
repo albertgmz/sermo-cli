@@ -42,7 +42,7 @@ func (c *conversation) Prompt() string {
 // Commands are the BBS commands of the reader.
 func (c *conversation) Commands() []ui.Command {
 	if c.led != nil {
-		return editorHint()
+		return editorHints(&c.led)
 	}
 	if c.msgs == nil {
 		return []ui.Command{back()}
@@ -223,6 +223,9 @@ func (c *conversation) bbsView(width, height int) string {
 		ui.Rule(s, width, '='),
 	}
 	end := min(c.off+c.area(), len(c.bbsLines))
-	lines = append(lines, c.bbsLines[min(c.off, end):end]...)
+	lo := min(c.off, end)
+	if lo < end {
+		lines = append(lines, strings.Split(c.markMessages(c.bbsLines[lo:end], lo, c.markBBS), "\n")...)
+	}
 	return pad(lines, height)
 }

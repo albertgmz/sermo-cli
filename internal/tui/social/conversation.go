@@ -62,11 +62,14 @@ type conversation struct {
 	// next load, or 0.
 	jumpAt int
 	w, h   int
+	zid    string // the prefix of the zone IDs
 }
 
 // NewConversation returns the conversation id.
 func NewConversation(d *ui.Deps, id int) ui.Screen {
-	return &conversation{d: d, id: id, load: newLoader(d), page: 1, pages: 1, vp: viewport.New()}
+	c := &conversation{d: d, id: id, load: newLoader(d), page: 1, pages: 1, vp: viewport.New(), zid: ui.ZonePrefix()}
+	c.picker.list.SetZones(d, c.zid+"links")
+	return c
 }
 
 func (c *conversation) Title() string {
@@ -149,11 +152,20 @@ func (c *conversation) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 		return c, unauthorized(msg.err)
 	case tea.KeyPressMsg:
 		return c, c.key(msg)
-	case tea.MouseWheelMsg:
-		c.vp, _ = c.vp.Update(msg)
-		c.follow()
+	case tea.MouseWheelMsg, tea.MouseReleaseMsg:
+		return c, c.mouse(msg)
 	}
 	return c, nil
+}
+
+// mouse scrolls for the wheel and handles a click.
+func (c *conversation) mouse(msg tea.Msg) tea.Cmd {
+	if r, ok := msg.(tea.MouseReleaseMsg); ok {
+		return c.click(r)
+	}
+	c.vp, _ = c.vp.Update(msg)
+	c.follow()
+	return nil
 }
 
 // replied loads the last page and shows the new message id.
@@ -440,7 +452,10 @@ func (c *conversation) View(width, height int) string {
 	if c.picker.open {
 		return head + "\n" + who + "\n\n" + c.picker.view(c.d, width)
 	}
-	return head + "\n" + who + "\n" + c.vp.View() + "\n" + s.Muted.Render(ansiTrim(c.footer(), width))
+	body := c.markMessages(strings.Split(c.vp.View(), "\n"), c.vp.YOffset(), c.markModern)
+	page := i18n.Tf("social.page", map[string]any{"Page": c.page, "Pages": c.pages})
+	foot := c.d.MarkText(c.zid+"page", s.Muted.Render(ansiTrim(c.footer(), width)), page)
+	return head + "\n" + who + "\n" + body + "\n" + foot
 }
 
 func (c *conversation) footer() string {

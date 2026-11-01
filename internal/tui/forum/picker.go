@@ -18,8 +18,9 @@ type picker struct {
 	list  ui.List
 }
 
-func newPicker(title string, items []string, cursor int) *picker {
+func newPicker(d *ui.Deps, title string, items []string, cursor int) *picker {
 	p := &picker{title: title, items: items}
+	p.list.SetZones(d, ui.ZonePrefix()+"pick")
 	p.list.SetLen(len(items))
 	p.list.SetHeight(len(items))
 	p.list.Select(cursor)

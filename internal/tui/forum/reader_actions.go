@@ -215,7 +215,7 @@ func (r *reader) react() tea.Cmd {
 	if len(items) == 0 {
 		return toast("forum.toast.cannotReact")
 	}
-	r.picker, r.pickKind = newPicker(i18n.T("forum.pick.reaction"), items, cursor), pickReaction
+	r.picker, r.pickKind = newPicker(r.d, i18n.T("forum.pick.reaction"), items, cursor), pickReaction
 	return nil
 }
 
@@ -328,7 +328,7 @@ func (r *reader) links() tea.Cmd {
 	for i, l := range links {
 		items[i] = l.Label + "  " + r.d.Styles.Muted.Render(l.URL)
 	}
-	r.picker, r.pickKind = newPicker(i18n.T("forum.pick.link"), items, 0), pickLink
+	r.picker, r.pickKind = newPicker(r.d, i18n.T("forum.pick.link"), items, 0), pickLink
 	return nil
 }
 

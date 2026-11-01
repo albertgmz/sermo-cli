@@ -57,6 +57,7 @@
   "core.settings.motion": "Movimiento reducido",
   "core.settings.language": "Idioma",
   "core.settings.random": "Aleatorio",
+  "core.settings.mouse": "Ratón",
   "core.settings.on": "Sí",
   "core.settings.off": "No",
   "core.settings.hint": "Usa ← y → para cambiar un valor. Los cambios se guardan al momento.",

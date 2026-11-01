@@ -34,6 +34,7 @@ type threadList struct {
 	list     ui.List
 	picker   *picker
 	bbs      bbsList
+	zid      string // the prefix of the zone IDs
 }
 
 type threadsMsg struct {
@@ -97,8 +98,9 @@ func watchForum(d *ui.Deps, nodeID int) tea.Cmd {
 
 // NewNode returns the thread list of the node nodeID.
 func NewNode(d *ui.Deps, nodeID int) ui.Screen {
-	s := &threadList{d: d, nodeID: nodeID, sp: ui.NewSpinner(d.Styles), loading: true, page: 1, pages: 1}
+	s := &threadList{d: d, nodeID: nodeID, sp: ui.NewSpinner(d.Styles), loading: true, page: 1, pages: 1, zid: ui.ZonePrefix()}
 	s.list.SetClock(d.Now)
+	s.list.SetZones(d, s.zid+"row")
 	return s
 }
 
@@ -190,10 +192,40 @@ func (s *threadList) Update(msg tea.Msg) (ui.Screen, tea.Cmd) {
 		return s, spin(s.d, &s.sp, s.loading, msg)
 	case tea.KeyPressMsg:
 		return s, s.key(msg)
-	case tea.MouseWheelMsg:
-		s.list.Update(msg)
+	case tea.MouseWheelMsg, tea.MouseReleaseMsg:
+		return s, s.mouse(msg)
 	}
 	return s, nil
+}
+
+// mouse handles a click or a wheel message. The wheel moves the cursor.
+func (s *threadList) mouse(msg tea.Msg) tea.Cmd {
+	if r, ok := msg.(tea.MouseReleaseMsg); ok {
+		return s.click(r)
+	}
+	s.list.Update(msg)
+	return nil
+}
+
+// click handles a click: a prefix, the page counter or a row. A click on
+// the selected row opens the thread, like Enter.
+func (s *threadList) click(msg tea.MouseReleaseMsg) tea.Cmd {
+	switch {
+	case s.picker != nil:
+		return s.pick(msg)
+	case s.loading || s.err != nil:
+		return nil
+	case s.bbs.filtering:
+		return s.clickPrefix(msg)
+	}
+	if dir, ok := s.d.ClickedSide(s.zid+"page", msg); ok {
+		return s.turn(dir)
+	}
+	if s.list.Update(msg) && len(s.rows) > 0 {
+		id := s.rows[s.list.Cursor()].Id
+		return func() tea.Msg { return ui.OpenThreadMsg{ThreadID: id} }
+	}
+	return nil
 }
 
 // watched sets the watch state of the forum. A result for a thread does
@@ -300,7 +332,7 @@ func (s *threadList) openPicker() tea.Cmd {
 			cursor = i + 1
 		}
 	}
-	s.picker = newPicker(i18n.T("forum.node.pickPrefix"), items, cursor)
+	s.picker = newPicker(s.d, i18n.T("forum.node.pickPrefix"), items, cursor)
 	return nil
 }
 
@@ -386,7 +418,7 @@ func (s *threadList) footer() string {
 		p.InactiveDot = st.Muted.Render("•")
 		out = p.View() + "  "
 	}
-	out += st.Text.Render(i18n.Tf("forum.thread.page", map[string]any{"Page": s.page, "Pages": s.pages}))
+	out += s.d.Mark(s.zid+"page", st.Text.Render(i18n.Tf("forum.thread.page", map[string]any{"Page": s.page, "Pages": s.pages})))
 	if s.prefixID != 0 {
 		for _, p := range s.prefixes {
 			if p.Id == s.prefixID {

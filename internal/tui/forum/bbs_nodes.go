@@ -20,6 +20,9 @@ import (
 type bbsIndex struct {
 	height int
 	page   int
+	// picked is true after a click selects a forum. Only then the index
+	// shows the selected row.
+	picked bool
 	online *api.OnlinePage
 	stats  *api.SiteStats
 }
@@ -62,19 +65,43 @@ func (s *nodes) bbsUpdate(msg tea.Msg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-// input handles a key or a mouse wheel message. In the BBS interface the
-// prompt chooses the forums, so that only the page keys work.
+// input handles a key, a click or a mouse wheel message. In the BBS
+// interface the prompt chooses the forums, so that only the page keys and
+// the clicks work.
 func (s *nodes) input(msg tea.Msg) tea.Cmd {
 	k, isKey := msg.(tea.KeyPressMsg)
 	switch {
 	case s.d.BBS() && isKey:
 		return s.bbsKey(k)
 	case s.d.BBS():
-		return nil
+		return s.bbsClick(msg)
 	case isKey:
 		return s.key(k)
 	}
 	return s.move(msg)
+}
+
+// bbsClick selects the clicked forum. A click on the selected forum opens
+// it, like its number.
+func (s *nodes) bbsClick(msg tea.Msg) tea.Cmd {
+	if s.loading || s.err != nil {
+		return nil
+	}
+	if dir, ok := s.d.ClickedSide(s.zid+"page", msg); ok {
+		s.turnPage(dir)
+		return nil
+	}
+	for i, n := range s.items {
+		if n.Type == gen.NodeTypeCategory || !s.d.Clicked(s.list.RowZone(i), msg) {
+			continue
+		}
+		if s.bbs.picked && s.list.Cursor() == i {
+			return func() tea.Msg { return ui.OpenNodeMsg{NodeID: n.Id} }
+		}
+		s.list.Select(i)
+		s.bbs.picked = true
+	}
+	return nil
 }
 
 func (s *nodes) bbsKey(k tea.KeyPressMsg) tea.Cmd {
@@ -308,7 +335,10 @@ func (s *nodes) bbsView(width, height int) string {
 		}
 		pad := strings.Repeat("  ", indents[i])
 		t.Row(ui.Num(nums[i], total), pad+s.indexMarker(n)+" "+n.Title,
-			ui.Thousands(n.ThreadCount), ui.Thousands(n.PostCount), s.indexLast(n))
+			ui.Thousands(n.ThreadCount), ui.Thousands(n.PostCount), s.indexLast(n)).Zone(s.d, s.list.RowZone(i))
+		if s.bbs.picked && i == s.list.Cursor() {
+			t.Select()
+		}
 		if desc := oneLine(n.Description); desc != "" {
 			t.Sub("", pad+desc)
 		}
@@ -339,7 +369,7 @@ func (s *nodes) indexColumns(width int) []ui.Column {
 func (s *nodes) indexRight(page, pages int) string {
 	var parts []string
 	if pages > 1 {
-		parts = append(parts, i18n.Tf("bbs.forum.page", map[string]any{"Page": page + 1, "Pages": pages}))
+		parts = append(parts, s.d.Mark(s.zid+"page", i18n.Tf("bbs.forum.page", map[string]any{"Page": page + 1, "Pages": pages})))
 	}
 	if s.d.Me != nil {
 		n := 0

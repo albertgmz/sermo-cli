@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +24,8 @@ type List struct {
 	n, cursor, offset, height int
 	now                       func() time.Time
 	moved                     time.Time
+	d                         *Deps  // marks the rows; nil means no clicks
+	zone                      string // the zone ID of the list
 }
 
 // The keys of a List.
@@ -51,8 +54,16 @@ func ListKeys() []key.Binding {
 // clock is the system clock.
 func (l *List) SetClock(now func() time.Time) { l.now = now }
 
-// Reset makes the list empty. It keeps the clock.
-func (l *List) Reset() { *l = List{now: l.now} }
+// SetZones makes the rows clickable. d marks the rows. The zone ID id must
+// be unique on the screen.
+func (l *List) SetZones(d *Deps, id string) { l.d, l.zone = d, id }
+
+// RowZone returns the zone ID of row i. A screen that draws its own rows,
+// for example in a Table, marks them with this ID.
+func (l List) RowZone(i int) string { return l.zone + "." + strconv.Itoa(i) }
+
+// Reset makes the list empty. It keeps the clock and the zones.
+func (l *List) Reset() { *l = List{now: l.now, d: l.d, zone: l.zone} }
 
 // Animating reports whether the highlight animates at the time now. It is
 // true for 2 s after the last cursor move and after the list first gets
@@ -94,12 +105,15 @@ func (l List) Cursor() int { return l.cursor }
 // Select moves the cursor to row i.
 func (l *List) Select(i int) { l.move(i - l.cursor) }
 
-// Update moves the cursor for a key or a mouse wheel message. It returns
-// true when the user chooses the selected row with Enter.
+// Update moves the cursor for a key, a click or a mouse wheel message. It
+// returns true when the user chooses the selected row with Enter or with a
+// click on it. A click on another row selects that row.
 func (l *List) Update(msg tea.Msg) bool {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		return l.key(msg)
+	case tea.MouseReleaseMsg:
+		return l.click(msg)
 	case tea.MouseWheelMsg:
 		switch msg.Button {
 		case tea.MouseWheelUp:
@@ -132,6 +146,22 @@ func (l *List) key(msg tea.KeyPressMsg) bool {
 	return false
 }
 
+func (l *List) click(msg tea.MouseReleaseMsg) bool {
+	if l.d == nil {
+		return false
+	}
+	for i := range l.n {
+		if l.d.Clicked(l.RowZone(i), msg) {
+			if i == l.cursor {
+				return true
+			}
+			l.Select(i)
+			return false
+		}
+	}
+	return false
+}
+
 func (l *List) move(d int) {
 	before := l.cursor
 	l.cursor = max(0, min(l.cursor+d, l.n-1))
@@ -158,10 +188,19 @@ func (l List) View(s Styles, t theme.Theme, width int, phase float64, row func(i
 	for i := l.offset; i < l.n && i < l.offset+h; i++ {
 		text := row(i, inner)
 		if i == l.cursor {
-			lines = append(lines, s.Key.Background(t.Selection).Render("▶ ")+Highlight(t, text, inner, phase))
+			lines = append(lines, l.markRow(i, s.Key.Background(t.Selection).Render("▶ ")+Highlight(t, text, inner, phase), width))
 			continue
 		}
-		lines = append(lines, "  "+ansi.Truncate(text, inner, "…"))
+		lines = append(lines, l.markRow(i, "  "+ansi.Truncate(text, inner, "…"), width))
 	}
 	return strings.Join(lines, "\n")
+}
+
+// markRow puts a row in its zone. The zone fills the width, so that a click
+// right of the text also hits the row.
+func (l List) markRow(i int, line string, width int) string {
+	if !l.d.zonesOn() {
+		return line
+	}
+	return l.d.Mark(l.RowZone(i), line+strings.Repeat(" ", max(width-ansi.StringWidth(line), 0)))
 }

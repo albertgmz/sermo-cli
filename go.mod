@@ -17,6 +17,7 @@ require (
 	github.com/cli/browser v1.3.0
 	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be
 	github.com/creativeprojects/go-selfupdate v1.7.0
+	github.com/lrstanley/bubblezone/v2 v2.0.0
 	github.com/lucasb-eyer/go-colorful v1.4.1
 	github.com/nicksnyder/go-i18n/v2 v2.7.0
 	github.com/oapi-codegen/runtime v1.8.0
